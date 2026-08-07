@@ -25,6 +25,37 @@
 <title>漢字カルタ — オンライン対戦</title>
 <style>
   :root { color-scheme: dark; }
+  /* ===== テーマ変数（既定＝墨/ダーク） ===== */
+  :root {
+    --paper-base:#12100e; --paper-a:#1c1a16; --paper-b:#0d0b09;
+    --wave: rgba(184,145,47,.12);
+    --panel-bg: rgba(28,25,21,.66); --panel-line: rgba(236,224,200,.14); --panel-sh: rgba(0,0,0,.55);
+    --ink:#f0e7d4; --ink-soft:#9a8f7d; --lab:#8a7f6d;
+    --chip-bg:#211d18; --chip-text:#b8ad99; --chip-line:#3a342b;
+    --sel-bg:#b8912f; --sel-text:#171310;
+    --btn-bg:#c1352b; --btn-text:#f6efe0; --btn-sh:#7a1f18;
+    --ghost-bg:#211d18; --ghost-text:#d8cdb8; --ghost-line:#3a342b; --ghost-sh:#000;
+    --code-bg:#1a1713; --code-text:#f0e7d4;
+    --msg:#9a8f7d; --accent:#e0705a;
+    --result-a:#1a1713; --result-b:#0a0806;
+    --seal-win:#d9584a; --seal-lose:#5b82a8; --seal-draw:#9a8f7d;
+    --rtitle-win:#d4af37; --rtitle-lose:#7fa0c0; --rtitle-draw:#9a8f7d;
+  }
+  :root[data-theme="light"] {
+    --paper-base:#ece0c8; --paper-a:#f6efe0; --paper-b:#e7d8ba;
+    --wave: rgba(34,65,94,.10);
+    --panel-bg: rgba(250,245,234,.72); --panel-line: rgba(42,35,32,.14); --panel-sh: rgba(42,35,32,.14);
+    --ink:#1c1714; --ink-soft:#7a6f60; --lab:#8a7d6b;
+    --chip-bg:#fbf7ee; --chip-text:#6a5f52; --chip-line:#cdbfa4;
+    --sel-bg:#22415e; --sel-text:#f6efe0;
+    --btn-bg:#c1352b; --btn-text:#f6efe0; --btn-sh:#93261e;
+    --ghost-bg:#fbf7ee; --ghost-text:#3a3129; --ghost-line:#cdbfa4; --ghost-sh:#d8c9ac;
+    --code-bg:#fffdf7; --code-text:#1c1714;
+    --msg:#7a6f60; --accent:#c1352b;
+    --result-a:#f6efe0; --result-b:#e2d2b2;
+    --seal-win:#c1352b; --seal-lose:#22415e; --seal-draw:#6a5f52;
+    --rtitle-win:#b8912f; --rtitle-lose:#3f5872; --rtitle-draw:#6a5f52;
+  }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0; width: 100%; height: 100%;
@@ -47,24 +78,24 @@
   #gate {
     position: fixed; inset: 0; z-index: 10; overflow-y: auto;
     display: flex; align-items: center; justify-content: center; padding: 30px 24px;
-    color: #2a2320;
-    background-color: #ece0c8;
+    color: var(--ink);
+    background-color: var(--paper-base);
     background-image:
-      radial-gradient(circle at 50% 100%, transparent 0 9px, rgba(34,65,94,.10) 9px 11px, transparent 11px 20px),
-      radial-gradient(circle at 0% 100%,  transparent 0 9px, rgba(34,65,94,.10) 9px 11px, transparent 11px 20px),
-      radial-gradient(circle at 100% 100%,transparent 0 9px, rgba(34,65,94,.10) 9px 11px, transparent 11px 20px),
-      radial-gradient(1200px 800px at 50% -20%, #f6efe0 0%, #e7d8ba 70%);
+      radial-gradient(circle at 50% 100%, transparent 0 9px, var(--wave) 9px 11px, transparent 11px 20px),
+      radial-gradient(circle at 0% 100%,  transparent 0 9px, var(--wave) 9px 11px, transparent 11px 20px),
+      radial-gradient(circle at 100% 100%,transparent 0 9px, var(--wave) 9px 11px, transparent 11px 20px),
+      radial-gradient(1200px 800px at 50% -20%, var(--paper-a) 0%, var(--paper-b) 70%);
     background-size: 40px 20px, 40px 20px, 40px 20px, 100% 100%;
     background-position: 0 0, 0 0, 0 0, 0 0;
   }
   #gate.hidden { display: none; }
   .panel {
-    width: 100%; max-width: 620px; background: rgba(250,245,234,.72);
-    border: 1px solid rgba(42,35,32,.14); border-radius: 18px; padding: 26px 24px;
-    box-shadow: 0 18px 50px rgba(42,35,32,.14); backdrop-filter: blur(2px);
+    width: 100%; max-width: 620px; background: var(--panel-bg);
+    border: 1px solid var(--panel-line); border-radius: 18px; padding: 26px 24px;
+    box-shadow: 0 18px 50px var(--panel-sh); backdrop-filter: blur(2px);
   }
   h1 {
-    margin: 0 0 6px; font-size: 34px; letter-spacing: .28em; color: #1c1714; font-weight: 700;
+    margin: 0 0 6px; font-size: 34px; letter-spacing: .28em; color: var(--ink); font-weight: 700;
     font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; display: inline-block; position: relative;
   }
   h1::after {   /* 朱の落款（はんこ） */
@@ -73,35 +104,35 @@
     color: #f6efe0; background: #c1352b; border-radius: 5px; font-weight: 700; letter-spacing: 0;
     transform: rotate(-4deg); box-shadow: 0 1px 3px rgba(0,0,0,.25);
   }
-  .sub { color: #7a6f60; font-size: 13px; letter-spacing: .12em; margin-bottom: 24px;
+  .sub { color: var(--ink-soft); font-size: 13px; letter-spacing: .12em; margin-bottom: 24px;
     font-family: "Hiragino Mincho ProN", serif; }
   .row { margin-bottom: 18px; }
-  .lab { font-size: 12px; color: #8a7d6b; letter-spacing: .18em; margin-bottom: 8px; }
+  .lab { font-size: 12px; color: var(--lab); letter-spacing: .18em; margin-bottom: 8px; }
   .opts { display: flex; flex-wrap: wrap; gap: 8px; }
   .opt {
     padding: 9px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;
-    background: #fbf7ee; color: #6a5f52; border: 1px solid #cdbfa4; transition: .12s;
+    background: var(--chip-bg); color: var(--chip-text); border: 1px solid var(--chip-line); transition: .12s;
   }
-  .opt:hover { border-color: #22415e; color: #2a2320; }
-  .opt.sel { background: #22415e; color: #f6efe0; border-color: #22415e; font-weight: 600; }
+  .opt:hover { border-color: var(--sel-bg); color: var(--ink); }
+  .opt.sel { background: var(--sel-bg); color: var(--sel-text); border-color: var(--sel-bg); font-weight: 600; }
   .btn {
     padding: 14px 28px; font-size: 16px; letter-spacing: .08em; cursor: pointer;
-    background: #c1352b; color: #f6efe0; border: 0; border-radius: 8px; font-weight: 700;
-    box-shadow: 0 3px 0 #93261e;
+    background: var(--btn-bg); color: var(--btn-text); border: 0; border-radius: 8px; font-weight: 700;
+    box-shadow: 0 3px 0 var(--btn-sh);
   }
-  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #93261e; }
-  .btn.ghost { background: #fbf7ee; color: #3a3129; border: 1px solid #cdbfa4; box-shadow: 0 3px 0 #d8c9ac; }
-  .btn.ghost:active { box-shadow: 0 1px 0 #d8c9ac; }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--btn-sh); }
+  .btn.ghost { background: var(--ghost-bg); color: var(--ghost-text); border: 1px solid var(--ghost-line); box-shadow: 0 3px 0 var(--ghost-sh); }
+  .btn.ghost:active { box-shadow: 0 1px 0 var(--ghost-sh); }
   .btn:disabled { opacity: .35; cursor: default; }
   .btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   #code {
     width: 150px; padding: 12px 14px; font-size: 20px; letter-spacing: .3em;
-    text-align: center; text-transform: uppercase; background: #fffdf7;
-    border: 1px solid #cdbfa4; border-radius: 8px; color: #1c1714; font-family: inherit;
+    text-align: center; text-transform: uppercase; background: var(--code-bg);
+    border: 1px solid var(--chip-line); border-radius: 8px; color: var(--code-text); font-family: inherit;
   }
-  #msg { margin-top: 16px; font-size: 13px; color: #7a6f60; line-height: 1.8; min-height: 1.6em; }
-  #msg b { color: #c1352b; letter-spacing: .3em; font-size: 22px; }
-  #msg .er { color: #b3261e; }
+  #msg { margin-top: 16px; font-size: 13px; color: var(--msg); line-height: 1.8; min-height: 1.6em; }
+  #msg b { color: var(--accent); letter-spacing: .3em; font-size: 22px; }
+  #msg .er { color: #e0705a; }
 
   /* ---- HUD ---- */
   #hud {
@@ -128,9 +159,9 @@
   /* ---- 勝敗リザルト ---- */
   #result {
     position: fixed; inset: 0; z-index: 20; display: flex;
-    align-items: center; justify-content: center; overflow: hidden; color: #2a2320;
-    background-color: #ece0c8;
-    background-image: radial-gradient(1200px 900px at 50% 24%, #f6efe0 0%, #e2d2b2 72%);
+    align-items: center; justify-content: center; overflow: hidden; color: var(--ink);
+    background-color: var(--paper-base);
+    background-image: radial-gradient(1200px 900px at 50% 24%, var(--result-a) 0%, var(--result-b) 72%);
   }
   #result.hidden { display: none; }
   #result .rInner {
@@ -142,27 +173,27 @@
     font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 700;
     font-size: clamp(120px, 34vw, 300px); line-height: 1; margin-bottom: 4px;
   }
-  #result.win  #rSeal { color: #c1352b; text-shadow: 0 6px 30px rgba(193,53,43,.35); }
-  #result.lose #rSeal { color: #22415e; }
-  #result.draw #rSeal { color: #6a5f52; }
+  #result.win  #rSeal { color: var(--seal-win); text-shadow: 0 6px 34px rgba(217,88,74,.35); }
+  #result.lose #rSeal { color: var(--seal-lose); }
+  #result.draw #rSeal { color: var(--seal-draw); }
   #rTitle {
     font-size: clamp(30px, 9vw, 64px); font-weight: 800; letter-spacing: .12em;
     line-height: 1; margin-bottom: 10px;
   }
-  #result.win  #rTitle { color: #b8912f; }
-  #result.lose #rTitle { color: #3f5872; }
-  #result.draw #rTitle { color: #6a5f52; }
-  #rSub { font-size: 18px; color: #7a6f60; letter-spacing: .1em; margin-bottom: 4px;
+  #result.win  #rTitle { color: var(--rtitle-win); }
+  #result.lose #rTitle { color: var(--rtitle-lose); }
+  #result.draw #rTitle { color: var(--rtitle-draw); }
+  #rSub { font-size: 18px; color: var(--ink-soft); letter-spacing: .1em; margin-bottom: 4px;
     font-family: "Hiragino Mincho ProN", serif; }
-  #rScore { font-size: 15px; color: #8a7d6b; letter-spacing: .12em; margin-bottom: 24px;
+  #rScore { font-size: 15px; color: var(--lab); letter-spacing: .12em; margin-bottom: 24px;
     font-variant-numeric: tabular-nums; }
   .rBtns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .rBtns button {
     padding: 13px 26px; font-size: 15px; letter-spacing: .08em; cursor: pointer;
     border-radius: 8px; font-family: inherit; font-weight: 700; border: 0;
   }
-  #rAgain { background: #c1352b; color: #f6efe0; box-shadow: 0 3px 0 #93261e; }
-  #rMenu  { background: #fbf7ee; color: #3a3129; border: 1px solid #cdbfa4; box-shadow: 0 3px 0 #d8c9ac; }
+  #rAgain { background: var(--btn-bg); color: var(--btn-text); box-shadow: 0 3px 0 var(--btn-sh); }
+  #rMenu  { background: var(--ghost-bg); color: var(--ghost-text); border: 1px solid var(--ghost-line); box-shadow: 0 3px 0 var(--ghost-sh); }
   .rBtns button:active { transform: translateY(2px); }
   /* 勝ちのときだけ降る紙吹雪 */
   .confetti { position: absolute; top: -20px; width: 10px; height: 14px; opacity: 0; z-index: 1;
@@ -232,6 +263,14 @@
       <div class="opt" data-v="食べもの" data-i="gFood">食べもの</div>
       <div class="opt" data-v="自然" data-i="gNature">自然</div>
       <div class="opt" data-v="からだ" data-i="gBody">からだ</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab" id="lTheme">テーマ</div>
+    <div class="opts" id="oTheme">
+      <div class="opt sel" data-v="dark" data-i="thDark">墨（くろ）</div>
+      <div class="opt" data-v="light" data-i="thLight">和紙（しろ）</div>
     </div>
   </div>
 
@@ -421,7 +460,7 @@ const DECK = [
 ].map(([k, y, g, lv]) => ({ k, y, g, lv }));
 
 /* ================= 設定 ================= */
-const CFG = { input: "hand", level: 1, genre: "all", face: "on", bgm: "on", lang: "ja" };
+const CFG = { input: "hand", level: 1, genre: "all", face: "on", bgm: "on", lang: "ja", theme: "dark" };
 
 /* ================= 言語 =================
    UIの文言を日/英で切り替える。札の「漢字」はそのまま、読み札だけ英語では
@@ -445,6 +484,9 @@ const T = {
   gNature:  { ja: "自然", en: "Nature" },
   gBody:    { ja: "からだ", en: "Body" },
   face:     { ja: "かおだし", en: "FACE CAM" },
+  theme:    { ja: "テーマ", en: "THEME" },
+  thDark:   { ja: "墨（くろ）", en: "Sumi (dark)" },
+  thLight:  { ja: "和紙（しろ）", en: "Washi (light)" },
   play:     { ja: "あそびかた", en: "PLAY" },
   host:     { ja: "部屋をつくる", en: "Create room" },
   join:     { ja: "入る", en: "Join" },
@@ -539,6 +581,7 @@ function applyLang() {
   $("lLevel").textContent = tt("level");
   $("lGenre").textContent = tt("genre");
   $("lFace").textContent = tt("face");
+  $("lTheme").textContent = tt("theme");
   $("lBgm").textContent = "BGM";
   $("lPlay").textContent = tt("play");
   $("bHost").textContent = tt("host");
@@ -556,7 +599,9 @@ function applyLang() {
 const ROUNDS = 10;
 const CARDS_BY_LV = { 1: 4, 2: 6, 3: 6 };
 
-for (const [id, key] of [["oLang","lang"],["oInput","input"],["oLevel","level"],["oGenre","genre"],["oFace","face"],["oBgm","bgm"]]) {
+function applyTheme() { document.documentElement.dataset.theme = CFG.theme; }
+
+for (const [id, key] of [["oLang","lang"],["oTheme","theme"],["oInput","input"],["oLevel","level"],["oGenre","genre"],["oFace","face"],["oBgm","bgm"]]) {
   $(id).addEventListener("click", e => {
     const t = e.target.closest(".opt"); if (!t) return;
     [...$(id).children].forEach(c => c.classList.remove("sel"));
@@ -565,8 +610,10 @@ for (const [id, key] of [["oLang","lang"],["oInput","input"],["oLevel","level"],
     // 遊んでいる最中でもBGMは即オンオフ
     if (key === "bgm") { if (CFG.bgm === "on" && playing) startBGM(); else stopBGM(); }
     if (key === "lang") applyLang();
+    if (key === "theme") applyTheme();
   });
 }
+applyTheme();   // 既定（墨）を適用
 
 /* ================= 画面 ================= */
 let cards = [];              // layoutCards() が resize() から先に呼ばれるのでここで確保
