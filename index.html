@@ -34,18 +34,14 @@
   }
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
-  /* ---- 相手の顔（PIP） ---- */
+  /* 相手の映像は上半分にキャンバス描画するので、この要素は「デコードを止めない」ための
+     極小・透明の置き場に徹する（display:none にすると再生が止まってしまう） */
   #opWrap {
-    position: fixed; right: 14px; top: 64px; width: 176px; height: 132px;
-    border-radius: 12px; overflow: hidden; z-index: 4;
-    background: #10141a; border: 1px solid #2a323d; display: none;
+    position: fixed; right: 0; bottom: 0; width: 2px; height: 2px;
+    opacity: .01; pointer-events: none; z-index: -1; overflow: hidden;
   }
-  #opWrap.on { display: block; }
   #opVid { width: 100%; height: 100%; object-fit: cover; display: block; }
-  #opWrap .lb {
-    position: absolute; left: 0; bottom: 0; right: 0; font-size: 11px;
-    padding: 3px 7px; background: rgba(0,0,0,.55); color: #b8c2cd; letter-spacing: .08em;
-  }
+  #opWrap .lb { display: none; }
 
   /* ---- メニュー ---- */
   #gate {
@@ -412,7 +408,7 @@ function initPeer(id) {
     peer.on("connection", c => { if (isHost) wireConn(c); });
     peer.on("call", call => {
       call.answer(myStream || undefined);
-      call.on("stream", s => { opVid.srcObject = s; opWrap.classList.add("on"); });
+      call.on("stream", s => { opVid.srcObject = s; });
     });
   });
 }
@@ -421,7 +417,7 @@ function callPeer(otherId) {
   if (!peer) return;
   const call = peer.call(otherId, myStream || new MediaStream());
   if (!call) return;
-  call.on("stream", s => { opVid.srcObject = s; opWrap.classList.add("on"); });
+  call.on("stream", s => { opVid.srcObject = s; });
 }
 
 function onData(m) {
@@ -429,6 +425,7 @@ function onData(m) {
   else if (m.t === "round") { applyRound(m); }
   else if (m.t === "claim" && isHost) { resolveClaim(m.cardId, "op"); }
   else if (m.t === "result") { applyResult(m); }
+  else if (m.t === "ptr") { opPtrN = { x: m.x, y: m.y }; opPtrSp = m.sp || 0; opPtrT = performance.now(); }
   else if (m.t === "over") { endGame(m.text); }
 }
 
@@ -455,6 +452,8 @@ let playing = false, answer = null, qn = 0;
 let score = { me: 0, op: 0 };
 let freezeUntil = 0, roundLocked = false, armedAt = 0;
 let flash = null, cpuAt = Infinity;
+let cpuTarget = null, cpuWrong = false, cpuPtr = null;   // 練習モードの相手の手
+let opPtrN = null, opPtrSp = 0, opPtrT = 0, lastPtrSent = 0;   // オンラインの相手の指（正規化座標）
 
 function pool() {
   return DECK.filter(d => d.lv === CFG.level && (CFG.genre === "all" || d.g === CFG.genre));
@@ -470,9 +469,11 @@ function newRound() {
   const n = Math.min(CARDS_BY_LV[CFG.level] || 6, p.length);
   const sel = pick(p, n);
   const ans = sel[(Math.random() * sel.length) | 0];
+  // sel はシャッフル済み。前半をホスト陣、後半をゲスト陣に割り振る（＝上下に分ける）
+  const half = Math.ceil(n / 2);
   const m = {
     t: "round", n: qn + 1,
-    cards: sel.map((d, i) => ({ id: i, k: d.k })),
+    cards: sel.map((d, i) => ({ id: i, k: d.k, owner: i < half ? "host" : "guest" })),
     yomi: ans.y, answerId: sel.indexOf(ans),
   };
   applyRound(m);
@@ -484,40 +485,56 @@ function applyRound(m) {
   cards = m.cards.map(c => ({
     id: c.id, k: c.k, x: 0, y: 0, w: 0, h: 0,
     fly: false, vx: 0, vy: 0, rot: 0, rotv: 0, a: 1, inside: false,
+    // owner はホスト視点。自分の陣（下半分）かどうかを local 視点に直す
+    owner: c.owner || "host",
+    me: isHost ? (c.owner || "host") === "host" : (c.owner || "host") === "guest",
   }));
   answer = { id: m.answerId, yomi: m.yomi };
   roundLocked = false; flash = null;
+  opPtrN = null;
   // 札が並んだ直後に指が乗っていても暴発させない
   armedAt = performance.now() + 500;
   layoutCards();
   qnEl.textContent = "だい " + qn + " / " + ROUNDS + "もん";
   // CPUの手（練習モード）。dt はクランプされるので実時間で持つ
   const delay = { 1: 4.2, 2: 3.4, 3: 2.8 }[CFG.level] || 3.5;
-  cpuAt = mode === "solo" ? performance.now() + (delay + Math.random() * 2.5) * 1000 : Infinity;
+  if (mode === "solo") {
+    cpuAt = performance.now() + (delay + Math.random() * 2.5) * 1000;
+    cpuWrong = Math.random() < 0.25;
+    const cand = cards.filter(c => cpuWrong ? c.id !== answer.id : c.id === answer.id);
+    cpuTarget = cand[(Math.random() * cand.length) | 0] || null;
+    cpuPtr = { x: W / 2, y: H * 0.14 };   // 上から降りてくる
+  } else {
+    cpuAt = Infinity; cpuTarget = null;
+  }
 }
 
-function layoutCards() {
-  if (!cards.length || !W || !H) return;
-  const n = cards.length;
-  const cols = n <= 4 ? 2 : 3;
-  const rows = Math.ceil(n / cols);
-  const top = 132, bot = H - 46;
-  const areaH = Math.max(120, bot - top), areaW = W - 40;
-  // 札は中央にかためる。散らすと手が届かず、つまむのが苦行になる
-  const GAP = 20;
-  const cw = Math.min(180, (areaW - (cols - 1) * GAP) / cols);
-  const ch = Math.min(210, (areaH - (rows - 1) * GAP) / rows);
-  const gridH = rows * ch + (rows - 1) * GAP;
-  const oy = top + (areaH - gridH) / 2;
-  cards.forEach((c, i) => {
-    const r = (i / cols) | 0, col = i % cols;
-    const inRow = Math.min(cols, n - r * cols);
-    const rowW = inRow * cw + (inRow - 1) * GAP;
+/* 上下2分割レイアウト。相手の札は上半分、自分の札は下半分。
+   自分の札は下＝自分の指が届きやすい＝有利。読み札は中央の帯に置く。 */
+const BAND_H = 62;   // 中央の読み札帯の高さ
+function layoutRow(list, centerY, availW) {
+  const k = list.length; if (!k) return;
+  const GAP = 14;
+  const cw = Math.min(130, (availW - (k - 1) * GAP) / k);
+  const ch = Math.min(158, cw * 1.28);
+  const rowW = k * cw + (k - 1) * GAP;
+  list.forEach((c, i) => {
     c.w = cw; c.h = ch;
-    c.hx = (W - rowW) / 2 + col * (cw + GAP);
-    c.hy = oy + r * (ch + GAP);
+    c.hx = (W - rowW) / 2 + i * (cw + GAP);
+    c.hy = centerY - ch / 2;
     if (!c.fly) { c.x = c.hx; c.y = c.hy; }
   });
+}
+function layoutCards() {
+  if (!cards.length || !W || !H) return;
+  const availW = W - 28;
+  const midY = H / 2;
+  const topZ = [120, midY - BAND_H / 2 - 8];          // 相手ゾーン（上）
+  const botZ = [midY + BAND_H / 2 + 8, H - 40];        // 自分ゾーン（下）
+  const opC = cards.filter(c => !c.me);
+  const meC = cards.filter(c => c.me);
+  layoutRow(opC, (topZ[0] + topZ[1]) / 2, availW);
+  layoutRow(meC, (botZ[0] + botZ[1]) / 2, availW);
 }
 
 /* ---- 吹き飛ばす ----
@@ -598,7 +615,7 @@ async function startGame(m) {
   scMe.textContent = 0; scOp.textContent = 0;
   gate.classList.add("hidden");
   hud.style.display = "flex";
-  if (CFG.face === "on" && mode === "net") opWrap.classList.add("on");
+  if (CFG.face === "on" && mode === "net")
   if (CFG.bgm === "on") startBGM();
   requestAnimationFrame(loop);
   if (mode === "solo" || isHost) newRound();
@@ -608,7 +625,7 @@ function endGame(text) {
   playing = false;
   cards = []; trail.length = 0;
   hud.style.display = "none";
-  opWrap.classList.remove("on");
+
   gate.classList.remove("hidden");
   stopBGM();
   say("<b style='letter-spacing:.1em;font-size:19px'>" + text + "</b><br>じぶん " + score.me + " ／ あいて " + score.op);
@@ -669,31 +686,83 @@ addEventListener("keydown", e => {
 
 
 /* ================= 描画 ================= */
+/* 映像を指定した矩形に cover で敷く。mirror=true で鏡像（自撮り用） */
+function coverDraw(srcEl, dx, dy, dw, dh, mirror, filter) {
+  const sw = srcEl.videoWidth | 0, sh = srcEl.videoHeight | 0;
+  if (!sw || !sh) return false;
+  const s = Math.max(dw / sw, dh / sh), rw = sw * s, rh = sh * s;
+  vctx.save();
+  vctx.beginPath(); vctx.rect(dx, dy, dw, dh); vctx.clip();
+  vctx.filter = filter || "grayscale(.85) brightness(.32)";
+  if (mirror) { vctx.translate(dx + dw, dy); vctx.scale(-1, 1); vctx.translate(-dx, -dy); }
+  vctx.drawImage(srcEl, dx + (dw - rw) / 2, dy + (dh - rh) / 2, rw, rh);
+  vctx.restore();
+  return true;
+}
+
+/* 上=相手 / 下=自分 の分割背景。区切り線とラベルも描く */
 function drawBG() {
   vctx.fillStyle = "#07090c";
   vctx.fillRect(0, 0, W, H);
-  const vw = vid.videoWidth | 0, vh = vid.videoHeight | 0;
-  if (camOn && vw && vh) {
-    const s = Math.max(W / vw, H / vh);
-    const dw = vw * s, dh = vh * s, x = -(dw - W) / 2, y = -(dh - H) / 2;
-    vctx.save();
-    vctx.translate(W, 0); vctx.scale(-1, 1);
-    vctx.filter = "grayscale(.85) brightness(.32)";
-    vctx.drawImage(vid, W - (x + dw), y, dw, dh);
-    vctx.restore();
+  const midY = H / 2;
+
+  // 下半分：自分のカメラ（鏡像）
+  if (camOn) coverDraw(vid, 0, midY, W, H - midY, true);
+
+  // 上半分：相手。顔出しなら映像、隠しているなら暗いまま（指の点だけ出す）
+  if (mode === "net") {
+    const drew = coverDraw(opVid, 0, 0, W, midY, false);
+    if (!drew) {
+      vctx.fillStyle = "#0b0f14"; vctx.fillRect(0, 0, W, midY);
+    }
+  } else {
+    vctx.fillStyle = "#0a0d12"; vctx.fillRect(0, 0, W, midY);
   }
+
+  // 区切り線
+  vctx.save();
+  vctx.strokeStyle = "rgba(255,255,255,.14)"; vctx.lineWidth = 1;
+  vctx.setLineDash([10, 8]);
+  vctx.beginPath(); vctx.moveTo(0, midY); vctx.lineTo(W, midY); vctx.stroke();
+  vctx.setLineDash([]);
+  // 陣地ラベル
+  vctx.font = "600 11px 'Hiragino Sans', sans-serif"; vctx.textAlign = "left";
+  vctx.fillStyle = "rgba(255,159,111,.7)"; vctx.fillText("あいて陣", 14, 30 + 0);
+  vctx.fillStyle = "rgba(111,227,166,.7)"; vctx.fillText("じぶん陣", 14, H - 30);
+  vctx.restore();
 }
 
+/* 中央の帯に読み札（両者が読める位置） */
 function drawQuestion() {
   if (!answer) return;
+  const midY = H / 2, bw = Math.min(360, W - 40), bh = BAND_H;
   vctx.save();
-  vctx.textAlign = "center";
-  vctx.fillStyle = "#6d7884";
-  vctx.font = "12px 'Hiragino Sans', sans-serif";
-  vctx.fillText("この よみの かんじを はたけ！", W / 2, 62);
-  vctx.fillStyle = "#f2f6fa";
-  vctx.font = "600 " + Math.min(52, W * 0.11) + "px 'Hiragino Sans', sans-serif";
-  vctx.fillText(answer.yomi, W / 2, 108);
+  vctx.beginPath();
+  vctx.roundRect((W - bw) / 2, midY - bh / 2, bw, bh, 14);
+  vctx.fillStyle = "rgba(9,12,17,.82)";
+  vctx.fill();
+  vctx.lineWidth = 1; vctx.strokeStyle = "rgba(127,214,162,.35)"; vctx.stroke();
+  vctx.textAlign = "center"; vctx.textBaseline = "middle";
+  vctx.fillStyle = "#7fd6a2";
+  vctx.font = "600 " + Math.min(34, W * 0.08) + "px 'Hiragino Sans', sans-serif";
+  vctx.fillText(answer.yomi, W / 2, midY + 1);
+  vctx.restore();
+}
+
+/* 相手の手のマーカー（オンライン＝通信で来た指位置／練習＝CPUの手） */
+function drawOpp() {
+  let x, y;
+  if (mode === "net") {
+    if (!opPtrN || performance.now() - opPtrT > 1200) return;
+    // 相手の下半分＝こちらの上半分。左右も上下も反転して向かい合わせにする
+    x = (1 - opPtrN.x) * W; y = (1 - opPtrN.y) * H;
+  } else if (mode === "solo") {
+    if (!cpuPtr) return; x = cpuPtr.x; y = cpuPtr.y;
+  } else return;
+  vctx.save();
+  vctx.beginPath(); vctx.arc(x, y, 12, 0, Math.PI * 2);
+  vctx.fillStyle = "rgba(255,159,111,.85)"; vctx.fill();
+  vctx.lineWidth = 2; vctx.strokeStyle = "rgba(255,255,255,.85)"; vctx.stroke();
   vctx.restore();
 }
 
@@ -816,15 +885,22 @@ function loop(now) {
   if (window.innerWidth !== W || window.innerHeight !== H) resize();
   if (!W || !H) return;
 
-  // 練習モードのCPU
+  // 練習モードのCPU：手（点）を狙う札へ寄せていき、時間が来たら はたく
+  if (mode === "solo" && cpuPtr && cpuTarget && !cpuTarget.fly && !roundLocked) {
+    const tx = cpuTarget.x + cpuTarget.w / 2, ty = cpuTarget.y + cpuTarget.h / 2;
+    cpuPtr.x += (tx - cpuPtr.x) * Math.min(1, dt * 3.5);
+    cpuPtr.y += (ty - cpuPtr.y) * Math.min(1, dt * 3.5);
+  }
   if (mode === "solo" && !roundLocked && cards.length && now >= cpuAt) {
     cpuAt = Infinity;
-    const wrong = Math.random() < 0.25;
-    const cand = cards.filter(c => !c.fly && (wrong ? c.id !== answer.id : c.id === answer.id));
-    const c = cand[(Math.random() * cand.length) | 0];
+    const c = cpuTarget && !cpuTarget.fly ? cpuTarget : null;
     if (c) {
       applyResult({ cardId: c.id, who: "op", ok: c.id === answer.id });
-      if (c.id !== answer.id) cpuAt = now + 2500;   // お手つきしたら少し待って また狙う
+      if (c.id !== answer.id) {   // お手つき → 少し待って正解を狙い直す
+        cpuAt = now + 2500;
+        cpuWrong = false;
+        cpuTarget = cards.find(k => k.id === answer.id) || null;
+      }
     }
   }
 
@@ -860,6 +936,12 @@ function loop(now) {
   while (trail.length > TRAIL_MAX) trail.shift();
   if (!handSeen && trail.length) trail.shift();
 
+  // オンラインは自分の指位置を相手に送る（正規化・間引き）。相手はこれを上半分に映す
+  if (mode === "net" && pt && now - lastPtrSent > 45) {
+    lastPtrSent = now;
+    send({ t: "ptr", x: pt.x / W, y: pt.y / H, sp: Math.hypot(vel.x, vel.y) });
+  }
+
   /* ---- 当たり判定 ----
      指先が札の外から中へ「入った瞬間」だけ成立する。
      中に居続けても連打にならないので、指を置きっぱなしにしても暴発しない。 */
@@ -877,8 +959,9 @@ function loop(now) {
   updateCards(dt);
 
   drawBG();
-  drawQuestion();
   drawCards(pt);
+  drawQuestion();
+  drawOpp();
   drawFrozen();
   drawPointer(pt, handSeen);
   drawFlash(dt);
