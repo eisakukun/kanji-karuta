@@ -146,10 +146,11 @@
   .sc.me b { color: #6fe3a6; }
   .sc.op b { color: #ff9f6f; }
   #qn { margin-left: auto; font-size: 12px; color: #6d7884; letter-spacing: .12em; }
-  #quit {
+  #quit, #bVoice {
     pointer-events: auto; background: #131920; color: #7e8894; border: 1px solid #2b3542;
     border-radius: 999px; padding: 5px 13px; font-size: 12px; cursor: pointer; font-family: inherit;
   }
+  #bVoice.on { background: #1e3a2a; color: #6fe3a6; border-color: #2f6b4a; }
   #hintbar {
     position: fixed; left: calc(12px + env(safe-area-inset-left));
     bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5; color: #56606b; font-size: 11px;
@@ -211,6 +212,7 @@
   <div class="sc me">じぶん<b id="scMe">0</b></div>
   <div class="sc op">あいて<b id="scOp">0</b></div>
   <div id="qn"></div>
+  <button id="bVoice" style="display:none">🔇 かいわ オフ</button>
   <button id="quit">やめる</button>
 </div>
 <div id="hintbar"></div>
@@ -528,6 +530,8 @@ const T = {
              en: "Connected! Waiting for the host to start…" },
   disc:     { ja: "あいてが切断しました", en: "Opponent disconnected" },
   aborted:  { ja: "ちゅうだん", en: "Stopped" },
+  voiceOff: { ja: "🔇 かいわ オフ", en: "🔇 Voice off" },
+  voiceOn:  { ja: "🎤 かいわ オン", en: "🎤 Voice on" },
   copyUrl:  { ja: "📋 しょうたいメッセージをコピー", en: "📋 Copy invite message" },
   copied:   { ja: "コピーしました！ LINEなどに貼って相手に送ってね👇", en: "Copied! Paste it into a chat and send it 👇" },
   copyNG:   { ja: "コピーできませんでした。下を長押しでコピーしてね👇", en: "Copy failed. Long-press the text below to copy 👇" },
@@ -600,6 +604,7 @@ function applyLang() {
   document.querySelector(".sc.me").childNodes[0].nodeValue = tt("meScore");
   document.querySelector(".sc.op").childNodes[0].nodeValue = tt("opScore");
   $("quit").textContent = tt("quit");
+  updateVoiceBtn();
   if (!playing) msg.innerHTML = handLandmarker ? tt("ready") : msg.innerHTML;
 }
 const ROUNDS = 10;
@@ -720,7 +725,7 @@ function initPeer(id) {
     peer.on("connection", c => { if (isHost) wireConn(c); });
     peer.on("call", call => {
       call.answer(myStream || undefined);
-      call.on("stream", s => { opVid.srcObject = s; });
+      call.on("stream", s => { opVid.srcObject = s; opVid.muted = false; opVid.play().catch(() => {}); });
     });
   });
 }
@@ -729,7 +734,7 @@ function callPeer(otherId) {
   if (!peer) return;
   const call = peer.call(otherId, myStream || new MediaStream());
   if (!call) return;
-  call.on("stream", s => { opVid.srcObject = s; });
+  call.on("stream", s => { opVid.srcObject = s; opVid.muted = false; opVid.play().catch(() => {}); });
 }
 
 function onData(m) {
@@ -741,23 +746,35 @@ function onData(m) {
   else if (m.t === "over") { endGame(m.outcome || "draw"); }
 }
 
-/* ================= カメラ ================= */
-async function openCamera() {
+/* ================= カメラ / マイク ================= */
+let camOn = false, micAvailable = false, voiceOn = false;
+async function openCamera(withAudio) {
   const needVideo = CFG.input === "hand" || CFG.face === "on";
-  if (!needVideo) return;
-  myStream = await navigator.mediaDevices.getUserMedia({
-    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-    audio: false,
-  });
-  vid.srcObject = myStream;
-  await vid.play();
-  mir.width = vid.videoWidth || 640;
-  mir.height = vid.videoHeight || 480;
-  // 顔出しOFF なら相手には送らない（トラックを止める）
-  if (CFG.face === "off") myStream.getVideoTracks().forEach(t => (t.enabled = false));
-  camOn = true;
+  if (!needVideo && !withAudio) return;
+  const vc = needVideo ? { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" } : false;
+  try {
+    myStream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: !!withAudio });
+  } catch (e) {
+    if (withAudio && needVideo) {         // マイク拒否 → 映像だけで再挑戦（会話は無しでも対戦はできる）
+      myStream = await navigator.mediaDevices.getUserMedia({ video: vc, audio: false });
+    } else if (withAudio && !needVideo) { // 音声のみ希望でマイク拒否 → ストリーム無しで続行（データ通信で対戦は可能）
+      myStream = null; micAvailable = false; return;
+    } else throw e;
+  }
+  // マイクは既定でオフ（会話モードでオンにする）。存在すれば会話ボタンを出せる
+  const at = myStream.getAudioTracks();
+  micAvailable = at.length > 0;
+  at.forEach(t => (t.enabled = false));
+  if (needVideo) {
+    vid.srcObject = myStream;
+    await vid.play();
+    mir.width = vid.videoWidth || 640;
+    mir.height = vid.videoHeight || 480;
+    // 顔出しOFF なら相手には送らない（トラックを止める）
+    if (CFG.face === "off") myStream.getVideoTracks().forEach(t => (t.enabled = false));
+    camOn = true;
+  }
 }
-let camOn = false;
 
 /* ================= ゲーム状態 ================= */
 let playing = false, answer = null, qn = 0;
@@ -930,6 +947,14 @@ async function startGame(m) {
   $("result").classList.add("hidden");
   hud.style.display = "flex";
   if (CFG.bgm === "on") startBGM();
+  // 会話モードのトグルは「オンライン＋マイクあり」のときだけ出す（既定オフ）
+  voiceOn = false;
+  if (mode === "net" && micAvailable) {
+    if (myStream) myStream.getAudioTracks().forEach(t => (t.enabled = false));
+    $("bVoice").style.display = ""; updateVoiceBtn();
+  } else {
+    $("bVoice").style.display = "none";
+  }
   requestAnimationFrame(loop);
   if (mode === "solo" || isHost) newRound();
 }
@@ -939,6 +964,7 @@ function endGame(outcome, note) {
   playing = false;
   cards = []; trail.length = 0;
   hud.style.display = "none";
+  $("bVoice").style.display = "none";
   stopBGM();
   if (conn) { try { conn.close(); } catch (e) {} conn = null; }
   if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
@@ -987,6 +1013,22 @@ $("rAgain").addEventListener("click", () => {
 });
 $("quit").addEventListener("click", () => endGame(null, tt("aborted")));
 
+/* 会話モード：部屋で繋がったときだけHUDに出るトグル。マイクを送る/止める */
+function updateVoiceBtn() {
+  const b = $("bVoice");
+  b.textContent = voiceOn ? tt("voiceOn") : tt("voiceOff");
+  b.classList.toggle("on", voiceOn);
+}
+$("bVoice").addEventListener("click", () => {
+  if (!myStream) return;
+  const at = myStream.getAudioTracks();
+  if (!at.length) return;
+  voiceOn = !voiceOn;
+  at.forEach(t => (t.enabled = voiceOn));
+  try { opVid.muted = false; opVid.play(); } catch (e) {}   // 相手の声を鳴らす（ジェスチャ内）
+  updateVoiceBtn();
+});
+
 /* iOS/アプリ内ブラウザは「指で触れた瞬間」しか音を鳴らせない。
    カメラ起動の await より前＝ジェスチャの中で音とBGMを解禁しておく。 */
 function unlockAudioInGesture() {
@@ -1003,7 +1045,7 @@ function roomUrl(code) {
 $("bSolo").addEventListener("click", async () => {
   unlockAudioInGesture();
   // 練習はカメラが無くても始める。手が映らない間はマウスが指の代わりになる
-  try { await openCamera(); } catch (e) {
+  try { await openCamera(false); } catch (e) {
     say(tt("camNG", e.name));
   }
   isHost = true; startGame("solo");
@@ -1011,7 +1053,7 @@ $("bSolo").addEventListener("click", async () => {
 
 $("bHost").addEventListener("click", async () => {
   unlockAudioInGesture();
-  try { await openCamera(); } catch (e) { return say("カメラを開始できません: " + e.message, true); }
+  try { await openCamera(true); } catch (e) { return say("カメラを開始できません: " + e.message, true); }
   isHost = true;
   const code = Math.random().toString(36).slice(2, 6).toUpperCase();
   try {
@@ -1039,13 +1081,14 @@ $("bJoin").addEventListener("click", async () => {
   unlockAudioInGesture();
   const code = $("code").value.trim().toUpperCase();
   if (code.length !== 4) return say(tt("code4"), true);
-  try { await openCamera(); } catch (e) { return say("Camera error: " + e.message, true); }
+  try { await openCamera(true); } catch (e) { return say("Camera error: " + e.message, true); }
   isHost = false;
   try {
     await initPeer(null);
     say(tt("connecting"));
     wireConn(peer.connect(PREFIX + code, { reliable: true }));
-    setTimeout(() => { if (CFG.face === "on") callPeer(PREFIX + code); }, 900);
+    // 顔出しに関わらず必ず接続（会話の音声もこの回線で流れる）
+    setTimeout(() => callPeer(PREFIX + code), 900);
     setTimeout(() => {
       if (playing) return;
       if (conn && conn.open) startGame("net");
