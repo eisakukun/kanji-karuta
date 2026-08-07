@@ -298,7 +298,7 @@
       <button class="btn ghost" id="bJoin">入る</button>
       <button class="btn ghost" id="bSolo">ひとりで練習</button>
     </div>
-    <button class="btn" id="bCopy" style="display:none;margin-top:10px">📋 URLをコピー</button>
+    <button class="btn" id="bCopy" style="display:none;margin-top:10px">📋 しょうたいメッセージをコピー</button>
   </div>
 
   <div id="msg">モデルを読み込み中…</div>
@@ -528,9 +528,15 @@ const T = {
              en: "Connected! Waiting for the host to start…" },
   disc:     { ja: "あいてが切断しました", en: "Opponent disconnected" },
   aborted:  { ja: "ちゅうだん", en: "Stopped" },
-  copyUrl:  { ja: "📋 URLをコピー", en: "📋 Copy invite URL" },
-  copied:   { ja: "コピーしました！ 相手に送ってね。", en: "Copied! Send it to your opponent." },
-  copyNG:   { ja: "コピーできませんでした。長押しでコピーしてね: ", en: "Copy failed. Long-press to copy: " },
+  copyUrl:  { ja: "📋 しょうたいメッセージをコピー", en: "📋 Copy invite message" },
+  copied:   { ja: "コピーしました！ LINEなどに貼って相手に送ってね👇", en: "Copied! Paste it into a chat and send it 👇" },
+  copyNG:   { ja: "コピーできませんでした。下を長押しでコピーしてね👇", en: "Copy failed. Long-press the text below to copy 👇" },
+  inviteMsg:{ ja: (url, code) =>
+                "漢字カルタで対戦しよう！🎴\nこのリンクをタップするだけで入れるよ👇\n" + url +
+                "\n（入れないときは あいことば「" + code + "」を入力してね）",
+             en: (url, code) =>
+                "Let's play Kanji Karuta! 🎴\nJust tap this link to join 👇\n" + url +
+                "\n(or enter the code \"" + code + "\")" },
   joinRoom: { ja: c => "🎴 部屋「" + c + "」に入る", en: c => "🎴 Join room " + c },
   roomReady:{ ja: c => "しょうたい URL をひらいたよ。下の「部屋に入る」を押してね。（部屋 " + c + "）",
               en: c => "Invite opened. Tap “Join room” below. (room " + c + ")" },
@@ -1018,11 +1024,14 @@ $("bHost").addEventListener("click", async () => {
 
 $("bCopy").addEventListener("click", async () => {
   const url = roomUrl(roomCode);
+  const text = tt("inviteMsg", url, roomCode);
+  const preview = "<br><span style='display:block;margin-top:8px;font-size:12px;letter-spacing:0;"
+    + "color:var(--ink-soft);white-space:pre-wrap;line-height:1.6'>" + text + "</span>";
   try {
-    await navigator.clipboard.writeText(url);
-    say(tt("copied") + "<br><b style='font-size:12px;letter-spacing:0;color:#8e99a5'>" + url + "</b>");
+    await navigator.clipboard.writeText(text);
+    say(tt("copied") + preview);
   } catch (e) {
-    say(tt("copyNG") + "<br><b style='font-size:12px;letter-spacing:0;color:#8e99a5'>" + url + "</b>", true);
+    say(tt("copyNG") + preview, true);
   }
 });
 
