@@ -99,6 +99,44 @@
     bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5; color: #56606b; font-size: 11px;
     font-variant-numeric: tabular-nums; pointer-events: none; line-height: 1.6;
   }
+
+  /* ---- 勝敗リザルト ---- */
+  #result {
+    position: fixed; inset: 0; z-index: 20; display: flex;
+    align-items: center; justify-content: center; overflow: hidden;
+    background: radial-gradient(1200px 800px at 50% 30%, #10161f 0%, #05070a 72%);
+  }
+  #result.hidden { display: none; }
+  #result .rInner {
+    text-align: center; position: relative; z-index: 2; padding: 20px;
+    animation: rPop .55s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  @keyframes rPop { from { transform: scale(.6); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  #rTitle {
+    font-size: clamp(52px, 16vw, 128px); font-weight: 800; letter-spacing: .06em;
+    line-height: 1; margin-bottom: 10px;
+  }
+  #result.win  #rTitle { color: #6fe3a6; text-shadow: 0 0 40px rgba(111,227,166,.5); }
+  #result.lose #rTitle { color: #ff8b6f; text-shadow: 0 0 40px rgba(255,139,111,.4); }
+  #result.draw #rTitle { color: #cdd6e0; }
+  #rSub { font-size: 18px; color: #aeb8c4; letter-spacing: .1em; margin-bottom: 6px; }
+  #rScore { font-size: 15px; color: #6d7884; letter-spacing: .12em; margin-bottom: 26px;
+    font-variant-numeric: tabular-nums; }
+  .rBtns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .rBtns button {
+    padding: 13px 26px; font-size: 15px; letter-spacing: .08em; cursor: pointer;
+    border-radius: 999px; font-family: inherit; font-weight: 600; border: 0;
+  }
+  #rAgain { background: #fff; color: #000; }
+  #rMenu  { background: #131920; color: #cdd6e0; border: 1px solid #2b3542; }
+  /* 勝ちのときだけ降る紙吹雪 */
+  .confetti { position: absolute; top: -20px; width: 10px; height: 14px; opacity: 0; z-index: 1;
+    animation: fall linear forwards; }
+  #result:not(.win) .confetti { display: none; }
+  @keyframes fall {
+    0% { transform: translateY(-20px) rotate(0); opacity: 1; }
+    100% { transform: translateY(105vh) rotate(720deg); opacity: 1; }
+  }
 </style>
 
 <canvas id="view"></canvas>
@@ -111,40 +149,58 @@
 </div>
 <div id="hintbar"></div>
 
+<div id="result" class="hidden"><div class="rInner">
+  <div id="rTitle">YOU WIN</div>
+  <div id="rSub"></div>
+  <div id="rScore"></div>
+  <div class="rBtns">
+    <button id="rAgain">もう一回</button>
+    <button id="rMenu">メニュー</button>
+  </div>
+</div></div>
+
 <div id="gate"><div class="panel">
   <h1>漢字カルタ</h1>
-  <div class="sub">ONLINE — はたいて、とる。</div>
+  <div class="sub" id="lSub">ONLINE — はたいて、とる。</div>
 
   <div class="row">
-    <div class="lab">そうさ</div>
+    <div class="lab" id="lLangLab">げんご / LANGUAGE</div>
+    <div class="opts" id="oLang">
+      <div class="opt sel" data-v="ja">日本語</div>
+      <div class="opt" data-v="en">English</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab" id="lInput">そうさ</div>
     <div class="opts" id="oInput">
-      <div class="opt sel" data-v="hand">✋ 手ではたく（MediaPipe）</div>
-      <div class="opt" data-v="key">⌨️ キーボード（1〜6）</div>
+      <div class="opt sel" data-v="hand" data-i="optHand">✋ 手ではたく（MediaPipe）</div>
+      <div class="opt" data-v="key" data-i="optKey">⌨️ キーボード（1〜6）</div>
     </div>
   </div>
 
   <div class="row">
-    <div class="lab">レベル</div>
+    <div class="lab" id="lLevel">レベル</div>
     <div class="opts" id="oLevel">
-      <div class="opt sel" data-v="1">やさしい</div>
-      <div class="opt" data-v="2">ふつう</div>
-      <div class="opt" data-v="3">むずかしい</div>
+      <div class="opt sel" data-v="1" data-i="lv1">やさしい</div>
+      <div class="opt" data-v="2" data-i="lv2">ふつう</div>
+      <div class="opt" data-v="3" data-i="lv3">むずかしい</div>
     </div>
   </div>
 
   <div class="row">
-    <div class="lab">ジャンル</div>
+    <div class="lab" id="lGenre">ジャンル</div>
     <div class="opts" id="oGenre">
-      <div class="opt sel" data-v="all">ぜんぶ</div>
-      <div class="opt" data-v="動物">動物</div>
-      <div class="opt" data-v="食べもの">食べもの</div>
-      <div class="opt" data-v="自然">自然</div>
-      <div class="opt" data-v="からだ">からだ</div>
+      <div class="opt sel" data-v="all" data-i="gAll">ぜんぶ</div>
+      <div class="opt" data-v="動物" data-i="gAnimal">動物</div>
+      <div class="opt" data-v="食べもの" data-i="gFood">食べもの</div>
+      <div class="opt" data-v="自然" data-i="gNature">自然</div>
+      <div class="opt" data-v="からだ" data-i="gBody">からだ</div>
     </div>
   </div>
 
   <div class="row">
-    <div class="lab">かおだし</div>
+    <div class="lab" id="lFace">かおだし</div>
     <div class="opts" id="oFace">
       <div class="opt sel" data-v="on">ON</div>
       <div class="opt" data-v="off">OFF</div>
@@ -152,7 +208,7 @@
   </div>
 
   <div class="row">
-    <div class="lab">BGM</div>
+    <div class="lab" id="lBgm">BGM</div>
     <div class="opts" id="oBgm">
       <div class="opt sel" data-v="on">ON</div>
       <div class="opt" data-v="off">OFF</div>
@@ -160,7 +216,7 @@
   </div>
 
   <div class="row">
-    <div class="lab">あそびかた</div>
+    <div class="lab" id="lPlay">あそびかた</div>
     <div class="btns">
       <button class="btn" id="bHost">部屋をつくる</button>
       <input id="code" placeholder="CODE" maxlength="4">
@@ -250,6 +306,40 @@ function playChime(good) {
   });
 }
 
+/* 勝敗のジングル。win=明るい上昇ファンファーレ、lose=下降、draw=中間 */
+function playResult(outcome) {
+  if (!ac) return;
+  const t0 = ac.currentTime;
+  const seq = outcome === "win" ? [523, 659, 784, 1047, 1319]
+            : outcome === "lose" ? [440, 392, 330, 262]
+            : [523, 587];
+  const wave = outcome === "lose" ? "triangle" : "sine";
+  seq.forEach((f, i) => {
+    const st = t0 + i * (outcome === "win" ? 0.13 : 0.18);
+    const o = ac.createOscillator(); o.type = wave;
+    o.frequency.setValueAtTime(f, st);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, st);
+    g.gain.exponentialRampToValueAtTime(0.3, st + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0008, st + (outcome === "win" ? 0.5 : 0.42));
+    o.connect(g); g.connect(master);
+    o.start(st); o.stop(st + 0.6);
+  });
+  if (outcome === "win") {   // 最後にキラッと重ねる
+    const st = t0 + seq.length * 0.13;
+    [1047, 1319, 1568].forEach(f => {
+      const o = ac.createOscillator(); o.type = "sine";
+      o.frequency.value = f;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.22, st + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0008, st + 0.7);
+      o.connect(g); g.connect(master);
+      o.start(st); o.stop(st + 0.8);
+    });
+  }
+}
+
 /* BGM。ユーザー操作の中でしか鳴らせないので開始ボタンから呼ぶ */
 function startBGM() {
   if (!bgm) {
@@ -294,11 +384,134 @@ const DECK = [
 ].map(([k, y, g, lv]) => ({ k, y, g, lv }));
 
 /* ================= 設定 ================= */
-const CFG = { input: "hand", level: 1, genre: "all", face: "on", bgm: "on" };
+const CFG = { input: "hand", level: 1, genre: "all", face: "on", bgm: "on", lang: "ja" };
+
+/* ================= 言語 =================
+   UIの文言を日/英で切り替える。札の「漢字」はそのまま、読み札だけ英語では
+   ローマ字にして、日本語が読めない人でも遊べるようにする。 */
+const L = () => CFG.lang;
+const T = {
+  sub:      { ja: "ONLINE — はたいて、とる。", en: "ONLINE — swipe to grab." },
+  lang:     { ja: "げんご / LANGUAGE", en: "げんご / LANGUAGE" },
+  input:    { ja: "そうさ", en: "CONTROL" },
+  optHand:  { ja: "✋ 手ではたく（MediaPipe）", en: "✋ Swipe by hand (MediaPipe)" },
+  optKey:   { ja: "⌨️ キーボード（1〜6）", en: "⌨️ Keyboard (1–6)" },
+  level:    { ja: "レベル", en: "LEVEL" },
+  lv1:      { ja: "やさしい", en: "Easy" },
+  lv2:      { ja: "ふつう", en: "Normal" },
+  lv3:      { ja: "むずかしい", en: "Hard" },
+  genre:    { ja: "ジャンル", en: "GENRE" },
+  gAll:     { ja: "ぜんぶ", en: "All" },
+  gAnimal:  { ja: "動物", en: "Animals" },
+  gFood:    { ja: "食べもの", en: "Food" },
+  gNature:  { ja: "自然", en: "Nature" },
+  gBody:    { ja: "からだ", en: "Body" },
+  face:     { ja: "かおだし", en: "FACE CAM" },
+  play:     { ja: "あそびかた", en: "PLAY" },
+  host:     { ja: "部屋をつくる", en: "Create room" },
+  join:     { ja: "入る", en: "Join" },
+  solo:     { ja: "ひとりで練習", en: "Practice solo" },
+  ready:    { ja: "じゅんび完了。部屋をつくって、コードを相手に伝えてね。",
+             en: "Ready. Create a room and share the code with your opponent." },
+  prompt:   { ja: "この よみの かんじを はたけ！", en: "Swipe the kanji that reads:" },
+  round:    { ja: n => "だい " + n + " / " + ROUNDS + "もん", en: n => "Round " + n + " / " + ROUNDS },
+  meZone:   { ja: "じぶん陣", en: "YOUR SIDE" },
+  opZone:   { ja: "あいて陣", en: "RIVAL SIDE" },
+  meScore:  { ja: "じぶん", en: "YOU" },
+  opScore:  { ja: "あいて", en: "RIVAL" },
+  quit:     { ja: "やめる", en: "Quit" },
+  gotIt:    { ja: "とった！ +3", en: "GOT IT! +3" },
+  taken:    { ja: "とられた…", en: "TAKEN…" },
+  missMe:   { ja: "おてつき −2", en: "MISS −2" },
+  missOp:   { ja: "あいてが おてつき", en: "RIVAL MISSED" },
+  frozen:   { ja: s => "おてつき — " + s + "びょう はたけない", en: s => "MISS — frozen " + s + "s" },
+  hintHandOn:  { ja: "手: 検出中", en: "hand: tracking" },
+  hintHandOff: { ja: "手: なし", en: "hand: none" },
+  hintSpeed:   { ja: "はやさ", en: "speed" },
+  hintKey:  { ja: n => "キーボード: 1〜" + n + " で はたく", en: n => "Keyboard: 1–" + n + " to swipe" },
+  win:      { ja: "あなたの かち！", en: "You win!" },
+  lose:     { ja: "まけ…", en: "You lose…" },
+  draw:     { ja: "ひきわけ", en: "Draw" },
+  again:    { ja: "もう一回", en: "Play again" },
+  menu:     { ja: "メニュー", en: "Menu" },
+  scoreLine:{ ja: (a, b) => "じぶん " + a + " ／ あいて " + b, en: (a, b) => "YOU " + a + " · RIVAL " + b },
+  camNG:    { ja: e => "カメラが使えません（" + e + "）。マウスで はたけます。",
+             en: e => "Camera unavailable (" + e + "). You can swipe with the mouse." },
+  codeAsk:  { ja: c => "あいてに このコードを おしえて →<br><b>" + c + "</b>",
+             en: c => "Tell your opponent this code →<br><b>" + c + "</b>" },
+  code4:    { ja: "4もじの CODE を入れてね", en: "Enter the 4-letter CODE" },
+  connecting:{ ja: "せつぞく中…", en: "Connecting…" },
+  noRoom:   { ja: "その CODE の部屋が見つかりません。もう一度たしかめてね。",
+             en: "No room found for that CODE. Please check and retry." },
+  connected:{ ja: "つながった！ はじめます…", en: "Connected! Starting…" },
+  waitHost: { ja: "つながった！ ホストのはじめるのを待っています…",
+             en: "Connected! Waiting for the host to start…" },
+  disc:     { ja: "あいてが切断しました", en: "Opponent disconnected" },
+  aborted:  { ja: "ちゅうだん", en: "Stopped" },
+};
+function tt(key, ...a) {
+  const e = T[key] && T[key][L()];
+  return typeof e === "function" ? e(...a) : (e != null ? e : key);
+}
+
+/* ひらがな → ローマ字（読み札を英語モードで表示するため） */
+const KANA = {
+  あ:"a",い:"i",う:"u",え:"e",お:"o",か:"ka",き:"ki",く:"ku",け:"ke",こ:"ko",
+  さ:"sa",し:"shi",す:"su",せ:"se",そ:"so",た:"ta",ち:"chi",つ:"tsu",て:"te",と:"to",
+  な:"na",に:"ni",ぬ:"nu",ね:"ne",の:"no",は:"ha",ひ:"hi",ふ:"fu",へ:"he",ほ:"ho",
+  ま:"ma",み:"mi",む:"mu",め:"me",も:"mo",や:"ya",ゆ:"yu",よ:"yo",
+  ら:"ra",り:"ri",る:"ru",れ:"re",ろ:"ro",わ:"wa",を:"o",ん:"n",
+  が:"ga",ぎ:"gi",ぐ:"gu",げ:"ge",ご:"go",ざ:"za",じ:"ji",ず:"zu",ぜ:"ze",ぞ:"zo",
+  だ:"da",ぢ:"ji",づ:"zu",で:"de",ど:"do",ば:"ba",び:"bi",ぶ:"bu",べ:"be",ぼ:"bo",
+  ぱ:"pa",ぴ:"pi",ぷ:"pu",ぺ:"pe",ぽ:"po",
+};
+const YOON = { ゃ:"ya", ゅ:"yu", ょ:"yo" };
+function toRomaji(s) {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i], nx = s[i + 1];
+    if (c === "っ") { const r = KANA[nx] || YOON[nx]; if (r) out += r[0]; continue; }
+    if (c === "ー") { const m = out.match(/[aeiou]$/); if (m) out += m[0]; continue; }
+    if (YOON[nx] && KANA[c]) {           // きゃ 等：子音 + ya/yu/yo（i段の "i" を落とす）
+      let base = KANA[c];
+      if (base.endsWith("i")) base = base.slice(0, -1);
+      if (base === "sh" || base === "ch" || base === "j") out += base + YOON[nx].slice(1);
+      else out += base + YOON[nx];
+      i++; continue;
+    }
+    out += KANA[c] || c;
+  }
+  return out;
+}
+function readingText() {
+  if (!answer) return "";
+  return CFG.lang === "en" ? toRomaji(answer.yomi) : answer.yomi;
+}
+
+function applyLang() {
+  $("lSub").textContent = tt("sub");
+  $("lLangLab").textContent = tt("lang");
+  $("lInput").textContent = tt("input");
+  $("lLevel").textContent = tt("level");
+  $("lGenre").textContent = tt("genre");
+  $("lFace").textContent = tt("face");
+  $("lBgm").textContent = "BGM";
+  $("lPlay").textContent = tt("play");
+  $("bHost").textContent = tt("host");
+  $("bJoin").textContent = tt("join");
+  $("bSolo").textContent = tt("solo");
+  $("rAgain").textContent = tt("again");
+  $("rMenu").textContent = tt("menu");
+  document.querySelectorAll("[data-i]").forEach(el => { el.textContent = tt(el.dataset.i); });
+  document.querySelector(".sc.me").childNodes[0].nodeValue = tt("meScore");
+  document.querySelector(".sc.op").childNodes[0].nodeValue = tt("opScore");
+  $("quit").textContent = tt("quit");
+  if (!playing) msg.innerHTML = handLandmarker ? tt("ready") : msg.innerHTML;
+}
 const ROUNDS = 10;
 const CARDS_BY_LV = { 1: 4, 2: 6, 3: 6 };
 
-for (const [id, key] of [["oInput","input"],["oLevel","level"],["oGenre","genre"],["oFace","face"],["oBgm","bgm"]]) {
+for (const [id, key] of [["oLang","lang"],["oInput","input"],["oLevel","level"],["oGenre","genre"],["oFace","face"],["oBgm","bgm"]]) {
   $(id).addEventListener("click", e => {
     const t = e.target.closest(".opt"); if (!t) return;
     [...$(id).children].forEach(c => c.classList.remove("sel"));
@@ -306,6 +519,7 @@ for (const [id, key] of [["oInput","input"],["oLevel","level"],["oGenre","genre"
     CFG[key] = key === "level" ? +t.dataset.v : t.dataset.v;
     // 遊んでいる最中でもBGMは即オンオフ
     if (key === "bgm") { if (CFG.bgm === "on" && playing) startBGM(); else stopBGM(); }
+    if (key === "lang") applyLang();
   });
 }
 
@@ -340,9 +554,9 @@ try {
     runningMode: "VIDEO", numHands: 1,
     minHandDetectionConfidence: 0.6, minTrackingConfidence: 0.6,
   });
-  say("じゅんび完了。部屋をつくって、コードを相手に伝えてね。");
+  say(tt("ready"));
 } catch (e) {
-  say("モデルの読み込みに失敗しました: " + (e && e.message || e), true);
+  say("Model load failed: " + (e && e.message || e), true);
 }
 function say(html, err) { msg.innerHTML = err ? '<span class="er">' + html + "</span>" : html; }
 
@@ -387,15 +601,15 @@ function send(o) { if (conn && conn.open) { try { conn.send(o); } catch (e) {} }
 function wireConn(c) {
   conn = c;
   c.on("data", onData);
-  c.on("close", () => { if (playing) endGame("あいてが切断しました"); });
+  c.on("close", () => { if (playing) endGame(null, tt("disc")); });
   c.on("error", () => {});
   c.on("open", () => {
     if (isHost) {
       send({ t: "cfg", level: CFG.level, genre: CFG.genre });
-      say("つながった！ はじめます…");
+      say(tt("connected"));
       setTimeout(() => startGame("net"), 700);
     } else {
-      say("つながった！ ホストのはじめるのを待っています…");
+      say(tt("waitHost"));
     }
   });
 }
@@ -426,7 +640,7 @@ function onData(m) {
   else if (m.t === "claim" && isHost) { resolveClaim(m.cardId, "op"); }
   else if (m.t === "result") { applyResult(m); }
   else if (m.t === "ptr") { opPtrN = { x: m.x, y: m.y }; opPtrSp = m.sp || 0; opPtrT = performance.now(); }
-  else if (m.t === "over") { endGame(m.text); }
+  else if (m.t === "over") { endGame(m.outcome || "draw"); }
 }
 
 /* ================= カメラ ================= */
@@ -495,7 +709,7 @@ function applyRound(m) {
   // 札が並んだ直後に指が乗っていても暴発させない
   armedAt = performance.now() + 500;
   layoutCards();
-  qnEl.textContent = "だい " + qn + " / " + ROUNDS + "もん";
+  qnEl.textContent = tt("round", qn);
   // CPUの手（練習モード）。dt はクランプされるので実時間で持つ
   const delay = { 1: 4.2, 2: 3.4, 3: 2.8 }[CFG.level] || 3.5;
   if (mode === "solo") {
@@ -582,13 +796,13 @@ function applyResult(m) {
   if (m.ok) {
     score[who] += 3;
     roundLocked = true;
-    flash = { text: who === "me" ? "とった！ +3" : "とられた…", good: who === "me", t: 0 };
+    flash = { text: who === "me" ? tt("gotIt") : tt("taken"), good: who === "me", t: 0 };
     playChime(true);
     setTimeout(nextRound, 1500);
   } else {
     score[who] -= 2;
     if (who === "me") freezeUntil = performance.now() + 1500;
-    flash = { text: who === "me" ? "おてつき −2" : "あいてが おてつき", good: false, t: 0 };
+    flash = { text: who === "me" ? tt("missMe") : tt("missOp"), good: false, t: 0 };
     playChime(false);
   }
   scMe.textContent = score.me; scOp.textContent = score.op;
@@ -598,48 +812,88 @@ function nextRound() {
   if (!playing) return;
   if (mode === "net" && !isHost) return;   // ホストが配る
   if (qn >= ROUNDS) {
-    const text = score.me === score.op ? "ひきわけ！"
-      : (score.me > score.op ? "あなたの かち！" : "あいての かち！");
-    if (mode === "net") send({ t: "over", text: score.me > score.op ? "あいての かち！" : (score.me < score.op ? "あなたの かち！" : "ひきわけ！") });
-    endGame(text);
+    const my = score.me === score.op ? "draw" : (score.me > score.op ? "win" : "lose");
+    // 相手には勝敗を反転して送る
+    if (mode === "net") send({ t: "over", outcome: my === "win" ? "lose" : (my === "lose" ? "win" : "draw") });
+    endGame(my);
     return;
   }
   newRound();
 }
 
 /* ================= 開始 / 終了 ================= */
+let lastMode = "solo";
 async function startGame(m) {
-  mode = m;
+  mode = m; lastMode = m;
   playing = true;
   score = { me: 0, op: 0 }; qn = 0;
   scMe.textContent = 0; scOp.textContent = 0;
   gate.classList.add("hidden");
+  $("result").classList.add("hidden");
   hud.style.display = "flex";
-  if (CFG.face === "on" && mode === "net")
   if (CFG.bgm === "on") startBGM();
   requestAnimationFrame(loop);
   if (mode === "solo" || isHost) newRound();
 }
 
-function endGame(text) {
+/* outcome: "win"|"lose"|"draw" → リザルト画面。null → 中断/切断でメニューへ */
+function endGame(outcome, note) {
   playing = false;
   cards = []; trail.length = 0;
   hud.style.display = "none";
-
-  gate.classList.remove("hidden");
   stopBGM();
-  say("<b style='letter-spacing:.1em;font-size:19px'>" + text + "</b><br>じぶん " + score.me + " ／ あいて " + score.op);
   if (conn) { try { conn.close(); } catch (e) {} conn = null; }
   if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+
+  if (outcome === "win" || outcome === "lose" || outcome === "draw") {
+    showResult(outcome);
+  } else {
+    gate.classList.remove("hidden");
+    if (note) say(note);
+  }
 }
-$("quit").addEventListener("click", () => endGame("ちゅうだん"));
+
+function showResult(outcome) {
+  const r = $("result");
+  r.className = "";                 // hidden を外し outcome クラスを付ける
+  r.classList.add(outcome);
+  $("rTitle").textContent = outcome === "win" ? "YOU WIN" : outcome === "lose" ? "YOU LOSE" : "DRAW";
+  $("rSub").textContent = tt(outcome);
+  $("rScore").textContent = tt("scoreLine", score.me, score.op);
+  // 紙吹雪（勝ちのみCSSで表示）
+  [...r.querySelectorAll(".confetti")].forEach(n => n.remove());
+  if (outcome === "win") {
+    const cols = ["#6fe3a6", "#7fd6a2", "#ffd36f", "#ff9f6f", "#8fb7ff"];
+    for (let i = 0; i < 40; i++) {
+      const d = document.createElement("div");
+      d.className = "confetti";
+      d.style.left = (Math.random() * 100) + "vw";
+      d.style.background = cols[(Math.random() * cols.length) | 0];
+      d.style.animationDuration = (1.6 + Math.random() * 1.6) + "s";
+      d.style.animationDelay = (Math.random() * 0.6) + "s";
+      r.appendChild(d);
+    }
+  }
+  playResult(outcome);
+}
+
+$("rMenu").addEventListener("click", () => {
+  $("result").classList.add("hidden");
+  gate.classList.remove("hidden");
+});
+$("rAgain").addEventListener("click", () => {
+  $("result").classList.add("hidden");
+  if (lastMode === "solo") { isHost = true; startGame("solo"); }
+  else gate.classList.remove("hidden");   // オンラインは相手待ちが要るのでメニューへ
+});
+$("quit").addEventListener("click", () => endGame(null, tt("aborted")));
 
 /* ================= ボタン ================= */
 $("bSolo").addEventListener("click", async () => {
   initAudio(); resumeAudio();   // 音はユーザー操作の中で解禁する
   // 練習はカメラが無くても始める。手が映らない間はマウスが指の代わりになる
   try { await openCamera(); } catch (e) {
-    say("カメラが使えません（" + e.name + "）。マウスで はたけます。");
+    say(tt("camNG", e.name));
   }
   isHost = true; startGame("solo");
 });
@@ -651,27 +905,27 @@ $("bHost").addEventListener("click", async () => {
   const code = Math.random().toString(36).slice(2, 6).toUpperCase();
   try {
     await initPeer(PREFIX + code);
-    say("あいてに このコードを おしえて →<br><b>" + code + "</b>");
-  } catch (e) { say("部屋をつくれませんでした: " + (e.message || e), true); }
+    say(tt("codeAsk", code));
+  } catch (e) { say("Room error: " + (e.message || e), true); }
 });
 
 $("bJoin").addEventListener("click", async () => {
   initAudio(); resumeAudio();
   const code = $("code").value.trim().toUpperCase();
-  if (code.length !== 4) return say("4もじの CODE を入れてね", true);
-  try { await openCamera(); } catch (e) { return say("カメラを開始できません: " + e.message, true); }
+  if (code.length !== 4) return say(tt("code4"), true);
+  try { await openCamera(); } catch (e) { return say("Camera error: " + e.message, true); }
   isHost = false;
   try {
     await initPeer(null);
-    say("せつぞく中…");
+    say(tt("connecting"));
     wireConn(peer.connect(PREFIX + code, { reliable: true }));
     setTimeout(() => { if (CFG.face === "on") callPeer(PREFIX + code); }, 900);
     setTimeout(() => {
       if (playing) return;
       if (conn && conn.open) startGame("net");
-      else say("その CODE の部屋が見つかりません。もう一度たしかめてね。", true);
+      else say(tt("noRoom"), true);
     }, 2500);
-  } catch (e) { say("入れませんでした: " + (e.message || e), true); }
+  } catch (e) { say("Join error: " + (e.message || e), true); }
 });
 
 /* キーボード操作 */
@@ -727,8 +981,8 @@ function drawBG() {
   vctx.setLineDash([]);
   // 陣地ラベル
   vctx.font = "600 11px 'Hiragino Sans', sans-serif"; vctx.textAlign = "left";
-  vctx.fillStyle = "rgba(255,159,111,.7)"; vctx.fillText("あいて陣", 14, 30 + 0);
-  vctx.fillStyle = "rgba(111,227,166,.7)"; vctx.fillText("じぶん陣", 14, H - 30);
+  vctx.fillStyle = "rgba(255,159,111,.7)"; vctx.fillText(tt("opZone"), 14, 30 + 0);
+  vctx.fillStyle = "rgba(111,227,166,.7)"; vctx.fillText(tt("meZone"), 14, H - 30);
   vctx.restore();
 }
 
@@ -744,8 +998,9 @@ function drawQuestion() {
   vctx.lineWidth = 1; vctx.strokeStyle = "rgba(127,214,162,.35)"; vctx.stroke();
   vctx.textAlign = "center"; vctx.textBaseline = "middle";
   vctx.fillStyle = "#7fd6a2";
-  vctx.font = "600 " + Math.min(34, W * 0.08) + "px 'Hiragino Sans', sans-serif";
-  vctx.fillText(answer.yomi, W / 2, midY + 1);
+  const rd = readingText();
+  vctx.font = "600 " + Math.min(34, (bw * 0.9) / Math.max(3, rd.length) * 1.7) + "px 'Hiragino Sans', sans-serif";
+  vctx.fillText(rd, W / 2, midY + 1);
   vctx.restore();
 }
 
@@ -861,7 +1116,7 @@ function drawFrozen() {
   vctx.textAlign = "center";
   vctx.fillStyle = "rgba(255,139,111,.85)";
   vctx.font = "600 15px 'Hiragino Sans', sans-serif";
-  vctx.fillText("おてつき — " + left.toFixed(1) + "びょう はたけない", W / 2, H - 20);
+  vctx.fillText(tt("frozen", left.toFixed(1)), W / 2, H - 20);
   vctx.restore();
 }
 
@@ -967,8 +1222,8 @@ function loop(now) {
   drawFlash(dt);
 
   dbg.textContent = CFG.input === "hand"
-    ? (handSeen ? "手: 検出中" : "手: なし") + "   はやさ " + Math.hypot(vel.x, vel.y).toFixed(0)
-    : "キーボード: 1〜" + cards.length + " で はたく";
+    ? (handSeen ? tt("hintHandOn") : tt("hintHandOff")) + "   " + tt("hintSpeed") + " " + Math.hypot(vel.x, vel.y).toFixed(0)
+    : tt("hintKey", cards.length);
 }
 </script>
 
