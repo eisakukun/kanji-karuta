@@ -1,0 +1,895 @@
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="漢字カルタ">
+<meta name="theme-color" content="#07090c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+
+<style>
+  /* 全画面アプリとして開くと、上はノッチ・下はホームバーに潜り込む。
+     body ではなく html に余白を持たせるので、元のレイアウトを壊さない。
+     position:fixed で組んだ画面には効かないので、その場合は自分で
+     env(safe-area-inset-*) を足すこと */
+  @supports (padding: env(safe-area-inset-top)) {
+    html {
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      background: #07090c;
+    }
+  }
+</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no, viewport-fit=cover">
+<title>漢字カルタ — オンライン対戦</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #07090c; overflow: hidden;
+    font-family: "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ---- 相手の顔（PIP） ---- */
+  #opWrap {
+    position: fixed; right: 14px; top: 64px; width: 176px; height: 132px;
+    border-radius: 12px; overflow: hidden; z-index: 4;
+    background: #10141a; border: 1px solid #2a323d; display: none;
+  }
+  #opWrap.on { display: block; }
+  #opVid { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #opWrap .lb {
+    position: absolute; left: 0; bottom: 0; right: 0; font-size: 11px;
+    padding: 3px 7px; background: rgba(0,0,0,.55); color: #b8c2cd; letter-spacing: .08em;
+  }
+
+  /* ---- メニュー ---- */
+  #gate {
+    position: fixed; inset: 0; z-index: 10; overflow-y: auto;
+    background: radial-gradient(1100px 700px at 50% -10%, #16202c 0%, #07090c 70%);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  #gate.hidden { display: none; }
+  .panel { width: 100%; max-width: 620px; }
+  h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: .22em; color: #f2f6fa; font-weight: 600; }
+  .sub { color: #6d7884; font-size: 13px; letter-spacing: .1em; margin-bottom: 26px; }
+  .row { margin-bottom: 20px; }
+  .lab { font-size: 12px; color: #7e8894; letter-spacing: .16em; margin-bottom: 8px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .opt {
+    padding: 9px 16px; border-radius: 999px; cursor: pointer; font-size: 14px;
+    background: #131920; color: #8e99a5; border: 1px solid #232c36; transition: .12s;
+  }
+  .opt:hover { border-color: #3a4655; color: #cdd6e0; }
+  .opt.sel { background: #e9f0f7; color: #0b0e12; border-color: #e9f0f7; font-weight: 600; }
+  .btn {
+    padding: 14px 30px; font-size: 16px; letter-spacing: .1em; cursor: pointer;
+    background: #fff; color: #000; border: 0; border-radius: 999px; font-weight: 600;
+  }
+  .btn.ghost { background: #131920; color: #cdd6e0; border: 1px solid #2b3542; }
+  .btn:disabled { opacity: .3; cursor: default; }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  #code {
+    width: 150px; padding: 12px 14px; font-size: 20px; letter-spacing: .3em;
+    text-align: center; text-transform: uppercase; background: #0e131a;
+    border: 1px solid #2b3542; border-radius: 10px; color: #f2f6fa; font-family: inherit;
+  }
+  #msg { margin-top: 16px; font-size: 13px; color: #7e8894; line-height: 1.8; min-height: 1.6em; }
+  #msg b { color: #7fd6a2; letter-spacing: .3em; font-size: 22px; }
+  #msg .er { color: #ff8b8b; }
+
+  /* ---- HUD ---- */
+  #hud {
+    position: fixed; left: 0; right: 0; top: 0; z-index: 5;
+    padding: calc(10px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 10px calc(16px + env(safe-area-inset-left));
+    display: flex; align-items: center; gap: 14px; pointer-events: none;
+    background: linear-gradient(#000c 0%, #0000 100%);
+  }
+  .sc { font-size: 13px; letter-spacing: .1em; color: #8e99a5; }
+  .sc b { font-size: 26px; color: #f2f6fa; font-variant-numeric: tabular-nums; margin-left: 6px; }
+  .sc.me b { color: #6fe3a6; }
+  .sc.op b { color: #ff9f6f; }
+  #qn { margin-left: auto; font-size: 12px; color: #6d7884; letter-spacing: .12em; }
+  #quit {
+    pointer-events: auto; background: #131920; color: #7e8894; border: 1px solid #2b3542;
+    border-radius: 999px; padding: 5px 13px; font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  #hintbar {
+    position: fixed; left: calc(12px + env(safe-area-inset-left));
+    bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5; color: #56606b; font-size: 11px;
+    font-variant-numeric: tabular-nums; pointer-events: none; line-height: 1.6;
+  }
+</style>
+
+<canvas id="view"></canvas>
+<div id="opWrap"><video id="opVid" playsinline autoplay></video><div class="lb">あいて</div></div>
+<div id="hud" style="display:none">
+  <div class="sc me">じぶん<b id="scMe">0</b></div>
+  <div class="sc op">あいて<b id="scOp">0</b></div>
+  <div id="qn"></div>
+  <button id="quit">やめる</button>
+</div>
+<div id="hintbar"></div>
+
+<div id="gate"><div class="panel">
+  <h1>漢字カルタ</h1>
+  <div class="sub">ONLINE — はたいて、とる。</div>
+
+  <div class="row">
+    <div class="lab">そうさ</div>
+    <div class="opts" id="oInput">
+      <div class="opt sel" data-v="hand">✋ 手ではたく（MediaPipe）</div>
+      <div class="opt" data-v="key">⌨️ キーボード（1〜6）</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">レベル</div>
+    <div class="opts" id="oLevel">
+      <div class="opt sel" data-v="1">やさしい</div>
+      <div class="opt" data-v="2">ふつう</div>
+      <div class="opt" data-v="3">むずかしい</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">ジャンル</div>
+    <div class="opts" id="oGenre">
+      <div class="opt sel" data-v="all">ぜんぶ</div>
+      <div class="opt" data-v="動物">動物</div>
+      <div class="opt" data-v="食べもの">食べもの</div>
+      <div class="opt" data-v="自然">自然</div>
+      <div class="opt" data-v="からだ">からだ</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">かおだし</div>
+    <div class="opts" id="oFace">
+      <div class="opt sel" data-v="on">ON</div>
+      <div class="opt" data-v="off">OFF</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">BGM</div>
+    <div class="opts" id="oBgm">
+      <div class="opt sel" data-v="on">ON</div>
+      <div class="opt" data-v="off">OFF</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">あそびかた</div>
+    <div class="btns">
+      <button class="btn" id="bHost">部屋をつくる</button>
+      <input id="code" placeholder="CODE" maxlength="4">
+      <button class="btn ghost" id="bJoin">入る</button>
+      <button class="btn ghost" id="bSolo">ひとりで練習</button>
+    </div>
+  </div>
+
+  <div id="msg">モデルを読み込み中…</div>
+</div></div>
+
+<video id="vid" playsinline muted style="display:none"></video>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<script type="module">
+"use strict";
+import { FilesetResolver, HandLandmarker }
+  from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const $ = id => document.getElementById(id);
+const view = $("view"), vctx = view.getContext("2d");
+const vid = $("vid"), gate = $("gate"), msg = $("msg"), dbg = $("hintbar");
+const hud = $("hud"), scMe = $("scMe"), scOp = $("scOp"), qnEl = $("qn");
+const opWrap = $("opWrap"), opVid = $("opVid");
+
+const mir = document.createElement("canvas");
+const mctx = mir.getContext("2d", { willReadFrequently: true });
+
+/* ================= 音 =================
+   叩く音は録音素材ではなくWebAudioで合成する（外部ファイル不要・著作権フリー・
+   速度に応じて強さを変えられる）。BGMだけ mp3 を鳴らす。 */
+let ac = null, master = null, noiseBuf = null, bgm = null;
+function initAudio() {
+  if (ac) return;
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  master = ac.createGain(); master.gain.value = 0.9;
+  const comp = ac.createDynamicsCompressor();  // 暴走で耳を痛めない天井
+  comp.threshold.value = -6; comp.ratio.value = 20;
+  master.connect(comp); comp.connect(ac.destination);
+  // ホワイトノイズ（打撃のパチッ成分）を1本作って使い回す
+  const n = ac.sampleRate * 0.3 | 0;
+  noiseBuf = ac.createBuffer(1, n, ac.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+}
+function resumeAudio() { if (ac && ac.state === "suspended") ac.resume(); }
+
+/* パシッ という打撃音。str=0〜1 で強さ（＝はたく速度） */
+function playHit(str) {
+  if (!ac) return;
+  const t = ac.currentTime, v = 0.25 + 0.6 * Math.min(1, str);
+  // 高域ノイズのアタック
+  const ns = ac.createBufferSource(); ns.buffer = noiseBuf;
+  const nf = ac.createBiquadFilter(); nf.type = "highpass"; nf.frequency.value = 1400;
+  const ng = ac.createGain();
+  ng.gain.setValueAtTime(v, t);
+  ng.gain.exponentialRampToValueAtTime(0.0008, t + 0.09);
+  ns.connect(nf); nf.connect(ng); ng.connect(master);
+  ns.start(t); ns.stop(t + 0.12);
+  // 低い胴鳴り（バチンの芯）
+  const o = ac.createOscillator(); o.type = "triangle";
+  o.frequency.setValueAtTime(200, t);
+  o.frequency.exponentialRampToValueAtTime(70, t + 0.08);
+  const og = ac.createGain();
+  og.gain.setValueAtTime(v * 0.9, t);
+  og.gain.exponentialRampToValueAtTime(0.0008, t + 0.13);
+  o.connect(og); og.connect(master);
+  o.start(t); o.stop(t + 0.15);
+}
+
+/* 正解のキラッ／お手つきのブブッ */
+function playChime(good) {
+  if (!ac) return;
+  const t = ac.currentTime;
+  const notes = good ? [523, 784, 1047] : [196, 165];
+  notes.forEach((f, i) => {
+    const o = ac.createOscillator(); o.type = good ? "sine" : "sawtooth";
+    const g = ac.createGain();
+    const st = t + i * (good ? 0.06 : 0.09);
+    o.frequency.setValueAtTime(f, st);
+    if (!good) o.frequency.exponentialRampToValueAtTime(f * 0.7, st + 0.18);
+    g.gain.setValueAtTime(0.0001, st);
+    g.gain.exponentialRampToValueAtTime(good ? 0.32 : 0.28, st + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0008, st + (good ? 0.35 : 0.22));
+    o.connect(g); g.connect(master);
+    o.start(st); o.stop(st + 0.4);
+  });
+}
+
+/* BGM。ユーザー操作の中でしか鳴らせないので開始ボタンから呼ぶ */
+function startBGM() {
+  if (!bgm) {
+    bgm = new Audio("assets/bgm.mp3");
+    bgm.loop = true; bgm.volume = 0.28;
+  }
+  bgm.play().catch(() => {});   // ファイルが無い/未DLでも他は動く
+}
+function stopBGM() { if (bgm) { try { bgm.pause(); bgm.currentTime = 0; } catch (e) {} } }
+
+/* ================= 札データ ================= */
+/* k=漢字 y=よみ g=ジャンル lv=1やさしい 2ふつう 3むずかしい */
+const DECK = [
+  // 動物
+  ["犬","いぬ","動物",1],["猫","ねこ","動物",1],["魚","さかな","動物",1],["鳥","とり","動物",1],
+  ["馬","うま","動物",1],["牛","うし","動物",1],["虫","むし","動物",1],["貝","かい","動物",1],
+  ["亀","かめ","動物",2],["狼","おおかみ","動物",2],["兎","うさぎ","動物",2],["猿","さる","動物",2],
+  ["蛇","へび","動物",2],["鯨","くじら","動物",2],["蝶","ちょう","動物",2],["熊","くま","動物",2],
+  ["海豚","いるか","動物",3],["河馬","かば","動物",3],["麒麟","きりん","動物",3],["駱駝","らくだ","動物",3],
+  ["蟷螂","かまきり","動物",3],["梟","ふくろう","動物",3],["鰐","わに","動物",3],["鼬","いたち","動物",3],
+  // 食べもの
+  ["米","こめ","食べもの",1],["肉","にく","食べもの",1],["卵","たまご","食べもの",1],["塩","しお","食べもの",1],
+  ["豆","まめ","食べもの",1],["茶","ちゃ","食べもの",1],["水","みず","食べもの",1],["麦","むぎ","食べもの",1],
+  ["苺","いちご","食べもの",2],["蜜柑","みかん","食べもの",2],["西瓜","すいか","食べもの",2],["葡萄","ぶどう","食べもの",2],
+  ["蕎麦","そば","食べもの",2],["味噌","みそ","食べもの",2],["林檎","りんご","食べもの",2],["餅","もち","食べもの",2],
+  ["南瓜","かぼちゃ","食べもの",3],["胡瓜","きゅうり","食べもの",3],["玉葱","たまねぎ","食べもの",3],["人参","にんじん","食べもの",3],
+  ["秋刀魚","さんま","食べもの",3],["鰹","かつお","食べもの",3],["饂飩","うどん","食べもの",3],["珈琲","こーひー","食べもの",3],
+  // 自然
+  ["山","やま","自然",1],["川","かわ","自然",1],["空","そら","自然",1],["海","うみ","自然",1],
+  ["森","もり","自然",1],["石","いし","自然",1],["火","ひ","自然",1],["風","かぜ","自然",1],
+  ["雷","かみなり","自然",2],["霧","きり","自然",2],["虹","にじ","自然",2],["湖","みずうみ","自然",2],
+  ["岩","いわ","自然",2],["泉","いずみ","自然",2],["波","なみ","自然",2],["雲","くも","自然",2],
+  ["陽炎","かげろう","自然",3],["霞","かすみ","自然",3],["竜巻","たつまき","自然",3],["雪崩","なだれ","自然",3],
+  ["時雨","しぐれ","自然",3],["氷柱","つらら","自然",3],["疾風","はやて","自然",3],["黄昏","たそがれ","自然",3],
+  // からだ
+  ["手","て","からだ",1],["足","あし","からだ",1],["目","め","からだ",1],["口","くち","からだ",1],
+  ["耳","みみ","からだ",1],["頭","あたま","からだ",1],["心","こころ","からだ",1],["顔","かお","からだ",1],
+  ["腕","うで","からだ",2],["胸","むね","からだ",2],["肩","かた","からだ",2],["額","ひたい","からだ",2],
+  ["唇","くちびる","からだ",2],["眉","まゆ","からだ",2],["喉","のど","からだ",2],["膝","ひざ","からだ",2],
+  ["睫毛","まつげ","からだ",3],["踵","かかと","からだ",3],["掌","てのひら","からだ",3],["拳","こぶし","からだ",3],
+  ["瞼","まぶた","からだ",3],["臍","へそ","からだ",3],["爪","つめ","からだ",3],["鳩尾","みぞおち","からだ",3],
+].map(([k, y, g, lv]) => ({ k, y, g, lv }));
+
+/* ================= 設定 ================= */
+const CFG = { input: "hand", level: 1, genre: "all", face: "on", bgm: "on" };
+const ROUNDS = 10;
+const CARDS_BY_LV = { 1: 4, 2: 6, 3: 6 };
+
+for (const [id, key] of [["oInput","input"],["oLevel","level"],["oGenre","genre"],["oFace","face"],["oBgm","bgm"]]) {
+  $(id).addEventListener("click", e => {
+    const t = e.target.closest(".opt"); if (!t) return;
+    [...$(id).children].forEach(c => c.classList.remove("sel"));
+    t.classList.add("sel");
+    CFG[key] = key === "level" ? +t.dataset.v : t.dataset.v;
+    // 遊んでいる最中でもBGMは即オンオフ
+    if (key === "bgm") { if (CFG.bgm === "on" && playing) startBGM(); else stopBGM(); }
+  });
+}
+
+/* ================= 画面 ================= */
+let cards = [];              // layoutCards() が resize() から先に呼ばれるのでここで確保
+let DPR = 1, W = 0, H = 0;
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = Math.max(1, window.innerWidth | 0);
+  H = Math.max(1, window.innerHeight | 0);
+  view.width = W * DPR; view.height = H * DPR;
+  view.style.width = W + "px"; view.style.height = H + "px";
+  vctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  layoutCards();
+}
+resize();
+addEventListener("resize", resize);
+
+
+/* ================= モデル ================= */
+const WRIST = 0, THUMB_TIP = 4, INDEX_TIP = 8, MIDDLE_MCP = 9;
+let handLandmarker = null;
+try {
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/" +
+                      "hand_landmarker/float16/1/hand_landmarker.task",
+      delegate: "GPU",
+    },
+    runningMode: "VIDEO", numHands: 1,
+    minHandDetectionConfidence: 0.6, minTrackingConfidence: 0.6,
+  });
+  say("じゅんび完了。部屋をつくって、コードを相手に伝えてね。");
+} catch (e) {
+  say("モデルの読み込みに失敗しました: " + (e && e.message || e), true);
+}
+function say(html, err) { msg.innerHTML = err ? '<span class="er">' + html + "</span>" : html; }
+
+/* ================= 指の速度 =================
+   つまむ動作は使わない。指先が札に「入った瞬間」が当たり判定で、
+   そのときの速度ベクトルがそのまま札を吹き飛ばす力になる。 */
+let vel = { x: 0, y: 0 };          // px/秒
+const VEL_SMOOTH = 0.5;
+const trail = [];                  // 指の軌跡（スワイプを画で見せる）
+const TRAIL_MAX = 14;
+
+function updateVel(p, prev, dt) {
+  if (!prev || dt <= 0) return;
+  const vx = (p.x - prev.x) / dt, vy = (p.y - prev.y) / dt;
+  vel.x += (vx - vel.x) * VEL_SMOOTH;
+  vel.y += (vy - vel.y) * VEL_SMOOTH;
+}
+
+function mapPt(n) {
+  const vw = mir.width, vh = mir.height;
+  if (!W || !H || !vw || !vh) return { x: W / 2, y: H / 2 };
+  const s = Math.max(W / vw, H / vh);
+  const dw = vw * s, dh = vh * s;
+  return { x: n.x * dw - (dw - W) / 2, y: n.y * dh - (dh - H) / 2 };
+}
+const SMOOTH = 0.4;
+let sm = null;
+function follow(p) {
+  if (!sm) { sm = { x: p.x, y: p.y }; return sm; }
+  if (Math.hypot(p.x - sm.x, p.y - sm.y) > Math.hypot(W, H) * 0.22) { sm.x = p.x; sm.y = p.y; }
+  else { sm.x += (p.x - sm.x) * SMOOTH; sm.y += (p.y - sm.y) * SMOOTH; }
+  return sm;
+}
+
+/* ================= 通信 ================= */
+const PREFIX = "kanjikaruta-v1-";
+let peer = null, conn = null, isHost = false, mode = "solo"; // solo | net
+let myStream = null;
+
+function send(o) { if (conn && conn.open) { try { conn.send(o); } catch (e) {} } }
+
+function wireConn(c) {
+  conn = c;
+  c.on("data", onData);
+  c.on("close", () => { if (playing) endGame("あいてが切断しました"); });
+  c.on("error", () => {});
+  c.on("open", () => {
+    if (isHost) {
+      send({ t: "cfg", level: CFG.level, genre: CFG.genre });
+      say("つながった！ はじめます…");
+      setTimeout(() => startGame("net"), 700);
+    } else {
+      say("つながった！ ホストのはじめるのを待っています…");
+    }
+  });
+}
+
+function initPeer(id) {
+  return new Promise((res, rej) => {
+    peer = new Peer(id || undefined, { debug: 0 });
+    peer.on("open", pid => res(pid));
+    peer.on("error", e => rej(e));
+    peer.on("connection", c => { if (isHost) wireConn(c); });
+    peer.on("call", call => {
+      call.answer(myStream || undefined);
+      call.on("stream", s => { opVid.srcObject = s; opWrap.classList.add("on"); });
+    });
+  });
+}
+
+function callPeer(otherId) {
+  if (!peer) return;
+  const call = peer.call(otherId, myStream || new MediaStream());
+  if (!call) return;
+  call.on("stream", s => { opVid.srcObject = s; opWrap.classList.add("on"); });
+}
+
+function onData(m) {
+  if (m.t === "cfg") { CFG.level = m.level; CFG.genre = m.genre; }
+  else if (m.t === "round") { applyRound(m); }
+  else if (m.t === "claim" && isHost) { resolveClaim(m.cardId, "op"); }
+  else if (m.t === "result") { applyResult(m); }
+  else if (m.t === "over") { endGame(m.text); }
+}
+
+/* ================= カメラ ================= */
+async function openCamera() {
+  const needVideo = CFG.input === "hand" || CFG.face === "on";
+  if (!needVideo) return;
+  myStream = await navigator.mediaDevices.getUserMedia({
+    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+    audio: false,
+  });
+  vid.srcObject = myStream;
+  await vid.play();
+  mir.width = vid.videoWidth || 640;
+  mir.height = vid.videoHeight || 480;
+  // 顔出しOFF なら相手には送らない（トラックを止める）
+  if (CFG.face === "off") myStream.getVideoTracks().forEach(t => (t.enabled = false));
+  camOn = true;
+}
+let camOn = false;
+
+/* ================= ゲーム状態 ================= */
+let playing = false, answer = null, qn = 0;
+let score = { me: 0, op: 0 };
+let freezeUntil = 0, roundLocked = false, armedAt = 0;
+let flash = null, cpuAt = Infinity;
+
+function pool() {
+  return DECK.filter(d => d.lv === CFG.level && (CFG.genre === "all" || d.g === CFG.genre));
+}
+function pick(arr, n) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; }
+  return a.slice(0, n);
+}
+
+function newRound() {
+  const p = pool();
+  const n = Math.min(CARDS_BY_LV[CFG.level] || 6, p.length);
+  const sel = pick(p, n);
+  const ans = sel[(Math.random() * sel.length) | 0];
+  const m = {
+    t: "round", n: qn + 1,
+    cards: sel.map((d, i) => ({ id: i, k: d.k })),
+    yomi: ans.y, answerId: sel.indexOf(ans),
+  };
+  applyRound(m);
+  send(m);
+}
+
+function applyRound(m) {
+  qn = m.n;
+  cards = m.cards.map(c => ({
+    id: c.id, k: c.k, x: 0, y: 0, w: 0, h: 0,
+    fly: false, vx: 0, vy: 0, rot: 0, rotv: 0, a: 1, inside: false,
+  }));
+  answer = { id: m.answerId, yomi: m.yomi };
+  roundLocked = false; flash = null;
+  // 札が並んだ直後に指が乗っていても暴発させない
+  armedAt = performance.now() + 500;
+  layoutCards();
+  qnEl.textContent = "だい " + qn + " / " + ROUNDS + "もん";
+  // CPUの手（練習モード）。dt はクランプされるので実時間で持つ
+  const delay = { 1: 4.2, 2: 3.4, 3: 2.8 }[CFG.level] || 3.5;
+  cpuAt = mode === "solo" ? performance.now() + (delay + Math.random() * 2.5) * 1000 : Infinity;
+}
+
+function layoutCards() {
+  if (!cards.length || !W || !H) return;
+  const n = cards.length;
+  const cols = n <= 4 ? 2 : 3;
+  const rows = Math.ceil(n / cols);
+  const top = 132, bot = H - 46;
+  const areaH = Math.max(120, bot - top), areaW = W - 40;
+  // 札は中央にかためる。散らすと手が届かず、つまむのが苦行になる
+  const GAP = 20;
+  const cw = Math.min(180, (areaW - (cols - 1) * GAP) / cols);
+  const ch = Math.min(210, (areaH - (rows - 1) * GAP) / rows);
+  const gridH = rows * ch + (rows - 1) * GAP;
+  const oy = top + (areaH - gridH) / 2;
+  cards.forEach((c, i) => {
+    const r = (i / cols) | 0, col = i % cols;
+    const inRow = Math.min(cols, n - r * cols);
+    const rowW = inRow * cw + (inRow - 1) * GAP;
+    c.w = cw; c.h = ch;
+    c.hx = (W - rowW) / 2 + col * (cw + GAP);
+    c.hy = oy + r * (ch + GAP);
+    if (!c.fly) { c.x = c.hx; c.y = c.hy; }
+  });
+}
+
+/* ---- 吹き飛ばす ----
+   指がぶつかった瞬間の速度ベクトルをそのまま札の初速にする。
+   遅く触れても札が動かないと当たった感が出ないので、下限をつける。 */
+const FLING_MIN = 900, FLING_MAX = 4200, GRAVITY = 1600;
+function launch(c, vx, vy) {
+  if (!c || c.fly) return;
+  let sp = Math.hypot(vx, vy);
+  if (sp < 1) { vx = 0; vy = -1; sp = 1; }          // ほぼ静止 → 上に弾く
+  const k = Math.min(FLING_MAX, Math.max(FLING_MIN, sp * 1.35)) / sp;
+  c.fly = true;
+  c.vx = vx * k; c.vy = vy * k;
+  // 指の角度ぶんスピンさせる。横に払えば大きく回る
+  c.rotv = (c.vx / 900) * (1.6 + Math.random() * 1.2) * (c.vy < 0 ? 1 : -1);
+  c.a = 1;
+  playHit(sp / 2500);   // はたいた瞬間のパシッ。速いほど強い
+}
+
+/* ---- 取る ---- */
+function claim(cardId) {
+  if (roundLocked || !playing) return;
+  if (performance.now() < freezeUntil) return;
+  if (mode === "net" && !isHost) { send({ t: "claim", cardId }); return; }
+  resolveClaim(cardId, "me");
+}
+
+function resolveClaim(cardId, who) {
+  if (roundLocked) return;
+  const ok = cardId === answer.id;
+  if (ok) roundLocked = true;
+  const m = { t: "result", cardId, who, ok };
+  applyResult(m);
+  if (mode === "net") send({ t: "result", cardId, who: who === "me" ? "op" : "me", ok });
+}
+
+function applyResult(m) {
+  const who = m.who;
+  // 自分の手はぶつかった瞬間にもう飛ばしてある。相手の手・キーボードはここで飛ばす
+  const c = cards.find(c => c.id === m.cardId);
+  if (c && !c.fly) {
+    const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
+    launch(c, Math.cos(ang) * 1800, Math.sin(ang) * 1800);
+  }
+  if (m.ok) {
+    score[who] += 3;
+    roundLocked = true;
+    flash = { text: who === "me" ? "とった！ +3" : "とられた…", good: who === "me", t: 0 };
+    playChime(true);
+    setTimeout(nextRound, 1500);
+  } else {
+    score[who] -= 2;
+    if (who === "me") freezeUntil = performance.now() + 1500;
+    flash = { text: who === "me" ? "おてつき −2" : "あいてが おてつき", good: false, t: 0 };
+    playChime(false);
+  }
+  scMe.textContent = score.me; scOp.textContent = score.op;
+}
+
+function nextRound() {
+  if (!playing) return;
+  if (mode === "net" && !isHost) return;   // ホストが配る
+  if (qn >= ROUNDS) {
+    const text = score.me === score.op ? "ひきわけ！"
+      : (score.me > score.op ? "あなたの かち！" : "あいての かち！");
+    if (mode === "net") send({ t: "over", text: score.me > score.op ? "あいての かち！" : (score.me < score.op ? "あなたの かち！" : "ひきわけ！") });
+    endGame(text);
+    return;
+  }
+  newRound();
+}
+
+/* ================= 開始 / 終了 ================= */
+async function startGame(m) {
+  mode = m;
+  playing = true;
+  score = { me: 0, op: 0 }; qn = 0;
+  scMe.textContent = 0; scOp.textContent = 0;
+  gate.classList.add("hidden");
+  hud.style.display = "flex";
+  if (CFG.face === "on" && mode === "net") opWrap.classList.add("on");
+  if (CFG.bgm === "on") startBGM();
+  requestAnimationFrame(loop);
+  if (mode === "solo" || isHost) newRound();
+}
+
+function endGame(text) {
+  playing = false;
+  cards = []; trail.length = 0;
+  hud.style.display = "none";
+  opWrap.classList.remove("on");
+  gate.classList.remove("hidden");
+  stopBGM();
+  say("<b style='letter-spacing:.1em;font-size:19px'>" + text + "</b><br>じぶん " + score.me + " ／ あいて " + score.op);
+  if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+  if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+}
+$("quit").addEventListener("click", () => endGame("ちゅうだん"));
+
+/* ================= ボタン ================= */
+$("bSolo").addEventListener("click", async () => {
+  initAudio(); resumeAudio();   // 音はユーザー操作の中で解禁する
+  // 練習はカメラが無くても始める。手が映らない間はマウスが指の代わりになる
+  try { await openCamera(); } catch (e) {
+    say("カメラが使えません（" + e.name + "）。マウスで はたけます。");
+  }
+  isHost = true; startGame("solo");
+});
+
+$("bHost").addEventListener("click", async () => {
+  initAudio(); resumeAudio();
+  try { await openCamera(); } catch (e) { return say("カメラを開始できません: " + e.message, true); }
+  isHost = true;
+  const code = Math.random().toString(36).slice(2, 6).toUpperCase();
+  try {
+    await initPeer(PREFIX + code);
+    say("あいてに このコードを おしえて →<br><b>" + code + "</b>");
+  } catch (e) { say("部屋をつくれませんでした: " + (e.message || e), true); }
+});
+
+$("bJoin").addEventListener("click", async () => {
+  initAudio(); resumeAudio();
+  const code = $("code").value.trim().toUpperCase();
+  if (code.length !== 4) return say("4もじの CODE を入れてね", true);
+  try { await openCamera(); } catch (e) { return say("カメラを開始できません: " + e.message, true); }
+  isHost = false;
+  try {
+    await initPeer(null);
+    say("せつぞく中…");
+    wireConn(peer.connect(PREFIX + code, { reliable: true }));
+    setTimeout(() => { if (CFG.face === "on") callPeer(PREFIX + code); }, 900);
+    setTimeout(() => {
+      if (playing) return;
+      if (conn && conn.open) startGame("net");
+      else say("その CODE の部屋が見つかりません。もう一度たしかめてね。", true);
+    }, 2500);
+  } catch (e) { say("入れませんでした: " + (e.message || e), true); }
+});
+
+/* キーボード操作 */
+addEventListener("keydown", e => {
+  if (!playing || CFG.input !== "key") return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= cards.length) {
+    const c = cards[n - 1];
+    if (c && !c.fly) claim(c.id);
+  }
+});
+
+
+/* ================= 描画 ================= */
+function drawBG() {
+  vctx.fillStyle = "#07090c";
+  vctx.fillRect(0, 0, W, H);
+  const vw = vid.videoWidth | 0, vh = vid.videoHeight | 0;
+  if (camOn && vw && vh) {
+    const s = Math.max(W / vw, H / vh);
+    const dw = vw * s, dh = vh * s, x = -(dw - W) / 2, y = -(dh - H) / 2;
+    vctx.save();
+    vctx.translate(W, 0); vctx.scale(-1, 1);
+    vctx.filter = "grayscale(.85) brightness(.32)";
+    vctx.drawImage(vid, W - (x + dw), y, dw, dh);
+    vctx.restore();
+  }
+}
+
+function drawQuestion() {
+  if (!answer) return;
+  vctx.save();
+  vctx.textAlign = "center";
+  vctx.fillStyle = "#6d7884";
+  vctx.font = "12px 'Hiragino Sans', sans-serif";
+  vctx.fillText("この よみの かんじを はたけ！", W / 2, 62);
+  vctx.fillStyle = "#f2f6fa";
+  vctx.font = "600 " + Math.min(52, W * 0.11) + "px 'Hiragino Sans', sans-serif";
+  vctx.fillText(answer.yomi, W / 2, 108);
+  vctx.restore();
+}
+
+/* 飛んでいる札の物理。指の速度がそのまま初速、あとは重力と空気抵抗にまかせる */
+function updateCards(dt) {
+  for (const c of cards) {
+    if (!c.fly || c.a <= 0) continue;
+    c.vy += GRAVITY * dt;
+    const drag = 1 - Math.min(0.9, 0.7 * dt);
+    c.vx *= drag; c.vy *= drag;
+    c.x += c.vx * dt; c.y += c.vy * dt;
+    c.rot += c.rotv * dt;
+    c.a = Math.max(0, c.a - dt * 1.15);
+  }
+}
+
+function drawCards(pt) {
+  const frozen = performance.now() < freezeUntil;
+  cards.forEach((c, i) => {
+    if (c.a <= 0) return;
+    const near = !frozen && !c.fly && pt && inCard(c, pt);
+    vctx.save();
+    vctx.globalAlpha = c.a;
+    vctx.translate(c.x + c.w / 2, c.y + c.h / 2);
+    if (c.fly) { vctx.rotate(c.rot); vctx.shadowColor = "rgba(0,0,0,.55)"; vctx.shadowBlur = 30; }
+    vctx.beginPath();
+    vctx.roundRect(-c.w / 2, -c.h / 2, c.w, c.h, 14);
+    vctx.fillStyle = near ? "#fffdf4" : "#e9e5da";
+    vctx.fill();
+    vctx.lineWidth = near ? 3 : 1;
+    vctx.strokeStyle = near ? "#7fd6a2" : "rgba(0,0,0,.18)";
+    vctx.stroke();
+    vctx.fillStyle = "#14171b";
+    const fs = Math.min(c.h * 0.42, (c.w * 0.78) / Math.max(1, c.k.length) * 1.15);
+    vctx.font = "600 " + fs + "px 'Hiragino Mincho ProN', 'Yu Mincho', serif";
+    vctx.textAlign = "center"; vctx.textBaseline = "middle";
+    vctx.fillText(c.k, 0, 4);
+    if (CFG.input === "key" && !c.fly) {
+      vctx.fillStyle = "rgba(0,0,0,.35)";
+      vctx.font = "600 13px sans-serif"; vctx.textBaseline = "alphabetic";
+      vctx.fillText(String(i + 1), -c.w / 2 + 16, -c.h / 2 + 24);
+    }
+    vctx.restore();
+  });
+}
+
+/* 指の軌跡。速く払っているほど尾が伸びて光る＝はたいた感が画で出る */
+function drawPointer(pt, seen) {
+  if (CFG.input !== "hand") return;
+  const frozen = performance.now() < freezeUntil;
+  const sp = Math.hypot(vel.x, vel.y);
+  const hot = Math.min(1, sp / 2200);
+
+  if (trail.length > 1) {
+    vctx.save();
+    vctx.lineCap = "round"; vctx.lineJoin = "round";
+    for (let i = 1; i < trail.length; i++) {
+      const t = i / trail.length;
+      vctx.beginPath();
+      vctx.moveTo(trail[i - 1].x, trail[i - 1].y);
+      vctx.lineTo(trail[i].x, trail[i].y);
+      vctx.lineWidth = 2 + t * (4 + hot * 12);
+      vctx.strokeStyle = "rgba(111,227,166," + (t * (0.12 + hot * 0.5)).toFixed(3) + ")";
+      vctx.stroke();
+    }
+    vctx.restore();
+  }
+  if (!seen || !pt) return;
+  vctx.save();
+  vctx.beginPath();
+  vctx.arc(pt.x, pt.y, 9 + hot * 9, 0, Math.PI * 2);
+  vctx.fillStyle = frozen ? "rgba(255,120,120,.5)" : "rgba(111,227,166," + (0.45 + hot * 0.5) + ")";
+  vctx.fill();
+  vctx.lineWidth = 2; vctx.strokeStyle = "rgba(255,255,255,.9)"; vctx.stroke();
+  vctx.restore();
+}
+
+function drawFlash(dt) {
+  if (!flash) return;
+  flash.t += dt;
+  if (flash.t > 1.5) { flash = null; return; }
+  const a = Math.min(1, flash.t * 6) * Math.max(0, 1 - (flash.t - 1.0) / 0.5);
+  vctx.save();
+  vctx.globalAlpha = a;
+  vctx.textAlign = "center";
+  vctx.fillStyle = flash.good ? "#6fe3a6" : "#ff8b6f";
+  vctx.font = "600 " + Math.min(44, W * 0.09) + "px 'Hiragino Sans', sans-serif";
+  vctx.fillText(flash.text, W / 2, H / 2);
+  vctx.restore();
+}
+
+function drawFrozen() {
+  const left = (freezeUntil - performance.now()) / 1000;
+  if (left <= 0) return;
+  vctx.save();
+  vctx.textAlign = "center";
+  vctx.fillStyle = "rgba(255,139,111,.85)";
+  vctx.font = "600 15px 'Hiragino Sans', sans-serif";
+  vctx.fillText("おてつき — " + left.toFixed(1) + "びょう はたけない", W / 2, H - 20);
+  vctx.restore();
+}
+
+function inCard(c, p) {
+  return p.x > c.x && p.x < c.x + c.w && p.y > c.y && p.y < c.y + c.h;
+}
+
+/* ================= ループ ================= */
+let last = performance.now(), handSeen = false;
+const mouse = { x: 0, y: 0, t: -1e9 };
+addEventListener("mousemove", e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.t = performance.now(); });
+
+function loop(now) {
+  if (!playing) return;
+  requestAnimationFrame(loop);
+
+  let dt = (now - last) / 1000; last = now;
+  if (!(dt > 0)) dt = 0.016;
+  dt = Math.min(dt, 0.05);
+
+  if (window.innerWidth !== W || window.innerHeight !== H) resize();
+  if (!W || !H) return;
+
+  // 練習モードのCPU
+  if (mode === "solo" && !roundLocked && cards.length && now >= cpuAt) {
+    cpuAt = Infinity;
+    const wrong = Math.random() < 0.25;
+    const cand = cards.filter(c => !c.fly && (wrong ? c.id !== answer.id : c.id === answer.id));
+    const c = cand[(Math.random() * cand.length) | 0];
+    if (c) {
+      applyResult({ cardId: c.id, who: "op", ok: c.id === answer.id });
+      if (c.id !== answer.id) cpuAt = now + 2500;   // お手つきしたら少し待って また狙う
+    }
+  }
+
+  let pt = sm;
+  handSeen = false;
+
+  if (CFG.input === "hand" && camOn && handLandmarker && mir.width && vid.readyState >= 2) {
+    mctx.save();
+    mctx.translate(mir.width, 0); mctx.scale(-1, 1);
+    mctx.drawImage(vid, 0, 0, mir.width, mir.height);
+    mctx.restore();
+    const res = handLandmarker.detectForVideo(mir, now);
+    const lm = res && res.landmarks && res.landmarks[0];
+    handSeen = !!lm;
+    if (lm) {
+      const prev = sm ? { x: sm.x, y: sm.y } : null;
+      pt = follow(mapPt(lm[INDEX_TIP]));
+      updateVel(pt, prev, dt);
+      trail.push({ x: pt.x, y: pt.y });
+    } else {
+      vel.x = 0; vel.y = 0;
+    }
+  }
+
+  // 手が映っていないときはマウスが指の代わりになる（カメラ無しのPCでも遊べる）
+  if (CFG.input === "hand" && !handSeen && now - mouse.t < 900) {
+    const prev = sm ? { x: sm.x, y: sm.y } : null;
+    pt = follow({ x: mouse.x, y: mouse.y });
+    updateVel(pt, prev, dt);
+    trail.push({ x: pt.x, y: pt.y });
+    handSeen = true;
+  }
+  while (trail.length > TRAIL_MAX) trail.shift();
+  if (!handSeen && trail.length) trail.shift();
+
+  /* ---- 当たり判定 ----
+     指先が札の外から中へ「入った瞬間」だけ成立する。
+     中に居続けても連打にならないので、指を置きっぱなしにしても暴発しない。 */
+  if (CFG.input === "hand") {
+    const canHit = !roundLocked && now > armedAt && now >= freezeUntil;
+    for (const c of cards) {
+      if (c.fly) { c.inside = false; continue; }
+      const on = (handSeen && pt) ? inCard(c, pt) : false;
+      const entered = on && !c.inside;
+      c.inside = on;
+      if (entered && canHit) { launch(c, vel.x, vel.y); claim(c.id); break; }
+    }
+  }
+
+  updateCards(dt);
+
+  drawBG();
+  drawQuestion();
+  drawCards(pt);
+  drawFrozen();
+  drawPointer(pt, handSeen);
+  drawFlash(dt);
+
+  dbg.textContent = CFG.input === "hand"
+    ? (handSeen ? "手: 検出中" : "手: なし") + "   はやさ " + Math.hypot(vel.x, vel.y).toFixed(0)
+    : "キーボード: 1〜" + cards.length + " で はたく";
+}
+</script>
+
+<script>
+  // オフラインでも開けるようにする
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
