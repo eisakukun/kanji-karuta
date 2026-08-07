@@ -43,40 +43,65 @@
   #opVid { width: 100%; height: 100%; object-fit: cover; display: block; }
   #opWrap .lb { display: none; }
 
-  /* ---- メニュー ---- */
+  /* ---- メニュー（和風・和紙＋青海波） ---- */
   #gate {
     position: fixed; inset: 0; z-index: 10; overflow-y: auto;
-    background: radial-gradient(1100px 700px at 50% -10%, #16202c 0%, #07090c 70%);
-    display: flex; align-items: center; justify-content: center; padding: 24px;
+    display: flex; align-items: center; justify-content: center; padding: 30px 24px;
+    color: #2a2320;
+    background-color: #ece0c8;
+    background-image:
+      radial-gradient(circle at 50% 100%, transparent 0 9px, rgba(34,65,94,.10) 9px 11px, transparent 11px 20px),
+      radial-gradient(circle at 0% 100%,  transparent 0 9px, rgba(34,65,94,.10) 9px 11px, transparent 11px 20px),
+      radial-gradient(circle at 100% 100%,transparent 0 9px, rgba(34,65,94,.10) 9px 11px, transparent 11px 20px),
+      radial-gradient(1200px 800px at 50% -20%, #f6efe0 0%, #e7d8ba 70%);
+    background-size: 40px 20px, 40px 20px, 40px 20px, 100% 100%;
+    background-position: 0 0, 0 0, 0 0, 0 0;
   }
   #gate.hidden { display: none; }
-  .panel { width: 100%; max-width: 620px; }
-  h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: .22em; color: #f2f6fa; font-weight: 600; }
-  .sub { color: #6d7884; font-size: 13px; letter-spacing: .1em; margin-bottom: 26px; }
-  .row { margin-bottom: 20px; }
-  .lab { font-size: 12px; color: #7e8894; letter-spacing: .16em; margin-bottom: 8px; }
+  .panel {
+    width: 100%; max-width: 620px; background: rgba(250,245,234,.72);
+    border: 1px solid rgba(42,35,32,.14); border-radius: 18px; padding: 26px 24px;
+    box-shadow: 0 18px 50px rgba(42,35,32,.14); backdrop-filter: blur(2px);
+  }
+  h1 {
+    margin: 0 0 6px; font-size: 34px; letter-spacing: .28em; color: #1c1714; font-weight: 700;
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; display: inline-block; position: relative;
+  }
+  h1::after {   /* 朱の落款（はんこ） */
+    content: "遊"; position: absolute; right: -34px; top: 2px;
+    width: 26px; height: 26px; line-height: 26px; font-size: 15px; text-align: center;
+    color: #f6efe0; background: #c1352b; border-radius: 5px; font-weight: 700; letter-spacing: 0;
+    transform: rotate(-4deg); box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  .sub { color: #7a6f60; font-size: 13px; letter-spacing: .12em; margin-bottom: 24px;
+    font-family: "Hiragino Mincho ProN", serif; }
+  .row { margin-bottom: 18px; }
+  .lab { font-size: 12px; color: #8a7d6b; letter-spacing: .18em; margin-bottom: 8px; }
   .opts { display: flex; flex-wrap: wrap; gap: 8px; }
   .opt {
-    padding: 9px 16px; border-radius: 999px; cursor: pointer; font-size: 14px;
-    background: #131920; color: #8e99a5; border: 1px solid #232c36; transition: .12s;
+    padding: 9px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;
+    background: #fbf7ee; color: #6a5f52; border: 1px solid #cdbfa4; transition: .12s;
   }
-  .opt:hover { border-color: #3a4655; color: #cdd6e0; }
-  .opt.sel { background: #e9f0f7; color: #0b0e12; border-color: #e9f0f7; font-weight: 600; }
+  .opt:hover { border-color: #22415e; color: #2a2320; }
+  .opt.sel { background: #22415e; color: #f6efe0; border-color: #22415e; font-weight: 600; }
   .btn {
-    padding: 14px 30px; font-size: 16px; letter-spacing: .1em; cursor: pointer;
-    background: #fff; color: #000; border: 0; border-radius: 999px; font-weight: 600;
+    padding: 14px 28px; font-size: 16px; letter-spacing: .08em; cursor: pointer;
+    background: #c1352b; color: #f6efe0; border: 0; border-radius: 8px; font-weight: 700;
+    box-shadow: 0 3px 0 #93261e;
   }
-  .btn.ghost { background: #131920; color: #cdd6e0; border: 1px solid #2b3542; }
-  .btn:disabled { opacity: .3; cursor: default; }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #93261e; }
+  .btn.ghost { background: #fbf7ee; color: #3a3129; border: 1px solid #cdbfa4; box-shadow: 0 3px 0 #d8c9ac; }
+  .btn.ghost:active { box-shadow: 0 1px 0 #d8c9ac; }
+  .btn:disabled { opacity: .35; cursor: default; }
   .btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   #code {
     width: 150px; padding: 12px 14px; font-size: 20px; letter-spacing: .3em;
-    text-align: center; text-transform: uppercase; background: #0e131a;
-    border: 1px solid #2b3542; border-radius: 10px; color: #f2f6fa; font-family: inherit;
+    text-align: center; text-transform: uppercase; background: #fffdf7;
+    border: 1px solid #cdbfa4; border-radius: 8px; color: #1c1714; font-family: inherit;
   }
-  #msg { margin-top: 16px; font-size: 13px; color: #7e8894; line-height: 1.8; min-height: 1.6em; }
-  #msg b { color: #7fd6a2; letter-spacing: .3em; font-size: 22px; }
-  #msg .er { color: #ff8b8b; }
+  #msg { margin-top: 16px; font-size: 13px; color: #7a6f60; line-height: 1.8; min-height: 1.6em; }
+  #msg b { color: #c1352b; letter-spacing: .3em; font-size: 22px; }
+  #msg .er { color: #b3261e; }
 
   /* ---- HUD ---- */
   #hud {
@@ -103,8 +128,9 @@
   /* ---- 勝敗リザルト ---- */
   #result {
     position: fixed; inset: 0; z-index: 20; display: flex;
-    align-items: center; justify-content: center; overflow: hidden;
-    background: radial-gradient(1200px 800px at 50% 30%, #10161f 0%, #05070a 72%);
+    align-items: center; justify-content: center; overflow: hidden; color: #2a2320;
+    background-color: #ece0c8;
+    background-image: radial-gradient(1200px 900px at 50% 24%, #f6efe0 0%, #e2d2b2 72%);
   }
   #result.hidden { display: none; }
   #result .rInner {
@@ -112,23 +138,32 @@
     animation: rPop .55s cubic-bezier(.2,1.4,.4,1) both;
   }
   @keyframes rPop { from { transform: scale(.6); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  #rSeal {   /* 大きな漢字（勝／負／分）を朱印風に */
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 700;
+    font-size: clamp(120px, 34vw, 300px); line-height: 1; margin-bottom: 4px;
+  }
+  #result.win  #rSeal { color: #c1352b; text-shadow: 0 6px 30px rgba(193,53,43,.35); }
+  #result.lose #rSeal { color: #22415e; }
+  #result.draw #rSeal { color: #6a5f52; }
   #rTitle {
-    font-size: clamp(52px, 16vw, 128px); font-weight: 800; letter-spacing: .06em;
+    font-size: clamp(30px, 9vw, 64px); font-weight: 800; letter-spacing: .12em;
     line-height: 1; margin-bottom: 10px;
   }
-  #result.win  #rTitle { color: #6fe3a6; text-shadow: 0 0 40px rgba(111,227,166,.5); }
-  #result.lose #rTitle { color: #ff8b6f; text-shadow: 0 0 40px rgba(255,139,111,.4); }
-  #result.draw #rTitle { color: #cdd6e0; }
-  #rSub { font-size: 18px; color: #aeb8c4; letter-spacing: .1em; margin-bottom: 6px; }
-  #rScore { font-size: 15px; color: #6d7884; letter-spacing: .12em; margin-bottom: 26px;
+  #result.win  #rTitle { color: #b8912f; }
+  #result.lose #rTitle { color: #3f5872; }
+  #result.draw #rTitle { color: #6a5f52; }
+  #rSub { font-size: 18px; color: #7a6f60; letter-spacing: .1em; margin-bottom: 4px;
+    font-family: "Hiragino Mincho ProN", serif; }
+  #rScore { font-size: 15px; color: #8a7d6b; letter-spacing: .12em; margin-bottom: 24px;
     font-variant-numeric: tabular-nums; }
   .rBtns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .rBtns button {
     padding: 13px 26px; font-size: 15px; letter-spacing: .08em; cursor: pointer;
-    border-radius: 999px; font-family: inherit; font-weight: 600; border: 0;
+    border-radius: 8px; font-family: inherit; font-weight: 700; border: 0;
   }
-  #rAgain { background: #fff; color: #000; }
-  #rMenu  { background: #131920; color: #cdd6e0; border: 1px solid #2b3542; }
+  #rAgain { background: #c1352b; color: #f6efe0; box-shadow: 0 3px 0 #93261e; }
+  #rMenu  { background: #fbf7ee; color: #3a3129; border: 1px solid #cdbfa4; box-shadow: 0 3px 0 #d8c9ac; }
+  .rBtns button:active { transform: translateY(2px); }
   /* 勝ちのときだけ降る紙吹雪 */
   .confetti { position: absolute; top: -20px; width: 10px; height: 14px; opacity: 0; z-index: 1;
     animation: fall linear forwards; }
@@ -150,6 +185,7 @@
 <div id="hintbar"></div>
 
 <div id="result" class="hidden"><div class="rInner">
+  <div id="rSeal">勝</div>
   <div id="rTitle">YOU WIN</div>
   <div id="rSub"></div>
   <div id="rScore"></div>
@@ -223,6 +259,7 @@
       <button class="btn ghost" id="bJoin">入る</button>
       <button class="btn ghost" id="bSolo">ひとりで練習</button>
     </div>
+    <button class="btn" id="bCopy" style="display:none;margin-top:10px">📋 URLをコピー</button>
   </div>
 
   <div id="msg">モデルを読み込み中…</div>
@@ -390,6 +427,7 @@ const CFG = { input: "hand", level: 1, genre: "all", face: "on", bgm: "on", lang
    UIの文言を日/英で切り替える。札の「漢字」はそのまま、読み札だけ英語では
    ローマ字にして、日本語が読めない人でも遊べるようにする。 */
 const L = () => CFG.lang;
+let pendingRoom = "";   // 招待URLで開いたときの部屋コード
 const T = {
   sub:      { ja: "ONLINE — はたいて、とる。", en: "ONLINE — swipe to grab." },
   lang:     { ja: "げんご / LANGUAGE", en: "げんご / LANGUAGE" },
@@ -448,6 +486,12 @@ const T = {
              en: "Connected! Waiting for the host to start…" },
   disc:     { ja: "あいてが切断しました", en: "Opponent disconnected" },
   aborted:  { ja: "ちゅうだん", en: "Stopped" },
+  copyUrl:  { ja: "📋 URLをコピー", en: "📋 Copy invite URL" },
+  copied:   { ja: "コピーしました！ 相手に送ってね。", en: "Copied! Send it to your opponent." },
+  copyNG:   { ja: "コピーできませんでした。長押しでコピーしてね: ", en: "Copy failed. Long-press to copy: " },
+  joinRoom: { ja: c => "🎴 部屋「" + c + "」に入る", en: c => "🎴 Join room " + c },
+  roomReady:{ ja: c => "しょうたい URL をひらいたよ。下の「部屋に入る」を押してね。（部屋 " + c + "）",
+              en: c => "Invite opened. Tap “Join room” below. (room " + c + ")" },
 };
 function tt(key, ...a) {
   const e = T[key] && T[key][L()];
@@ -498,8 +542,9 @@ function applyLang() {
   $("lBgm").textContent = "BGM";
   $("lPlay").textContent = tt("play");
   $("bHost").textContent = tt("host");
-  $("bJoin").textContent = tt("join");
+  $("bJoin").textContent = pendingRoom ? tt("joinRoom", pendingRoom) : tt("join");
   $("bSolo").textContent = tt("solo");
+  $("bCopy").textContent = tt("copyUrl");
   $("rAgain").textContent = tt("again");
   $("rMenu").textContent = tt("menu");
   document.querySelectorAll("[data-i]").forEach(el => { el.textContent = tt(el.dataset.i); });
@@ -857,6 +902,7 @@ function showResult(outcome) {
   const r = $("result");
   r.className = "";                 // hidden を外し outcome クラスを付ける
   r.classList.add(outcome);
+  $("rSeal").textContent = outcome === "win" ? "勝" : outcome === "lose" ? "負" : "分";
   $("rTitle").textContent = outcome === "win" ? "YOU WIN" : outcome === "lose" ? "YOU LOSE" : "DRAW";
   $("rSub").textContent = tt(outcome);
   $("rScore").textContent = tt("scoreLine", score.me, score.op);
@@ -888,9 +934,21 @@ $("rAgain").addEventListener("click", () => {
 });
 $("quit").addEventListener("click", () => endGame(null, tt("aborted")));
 
+/* iOS/アプリ内ブラウザは「指で触れた瞬間」しか音を鳴らせない。
+   カメラ起動の await より前＝ジェスチャの中で音とBGMを解禁しておく。 */
+function unlockAudioInGesture() {
+  initAudio(); resumeAudio();
+  if (CFG.bgm === "on") startBGM();   // ここで play() すると以後 iOS でも鳴らせる
+}
+
+let roomCode = "";
+function roomUrl(code) {
+  return location.origin + location.pathname + "?r=" + code;
+}
+
 /* ================= ボタン ================= */
 $("bSolo").addEventListener("click", async () => {
-  initAudio(); resumeAudio();   // 音はユーザー操作の中で解禁する
+  unlockAudioInGesture();
   // 練習はカメラが無くても始める。手が映らない間はマウスが指の代わりになる
   try { await openCamera(); } catch (e) {
     say(tt("camNG", e.name));
@@ -899,18 +957,30 @@ $("bSolo").addEventListener("click", async () => {
 });
 
 $("bHost").addEventListener("click", async () => {
-  initAudio(); resumeAudio();
+  unlockAudioInGesture();
   try { await openCamera(); } catch (e) { return say("カメラを開始できません: " + e.message, true); }
   isHost = true;
   const code = Math.random().toString(36).slice(2, 6).toUpperCase();
   try {
     await initPeer(PREFIX + code);
+    roomCode = code;
     say(tt("codeAsk", code));
+    $("bCopy").style.display = "";     // URLコピーボタンを出す
   } catch (e) { say("Room error: " + (e.message || e), true); }
 });
 
+$("bCopy").addEventListener("click", async () => {
+  const url = roomUrl(roomCode);
+  try {
+    await navigator.clipboard.writeText(url);
+    say(tt("copied") + "<br><b style='font-size:12px;letter-spacing:0;color:#8e99a5'>" + url + "</b>");
+  } catch (e) {
+    say(tt("copyNG") + "<br><b style='font-size:12px;letter-spacing:0;color:#8e99a5'>" + url + "</b>", true);
+  }
+});
+
 $("bJoin").addEventListener("click", async () => {
-  initAudio(); resumeAudio();
+  unlockAudioInGesture();
   const code = $("code").value.trim().toUpperCase();
   if (code.length !== 4) return say(tt("code4"), true);
   try { await openCamera(); } catch (e) { return say("Camera error: " + e.message, true); }
@@ -937,6 +1007,20 @@ addEventListener("keydown", e => {
     if (c && !c.fly) claim(c.id);
   }
 });
+
+/* 招待URL（?r=CODE）で開いたとき：コードを入れて「部屋に入る」を目立たせる。
+   自動では入らない（カメラ許可に指タップが要るため）＝ボタン一発で入れる形にする。 */
+(function handleInvite() {
+  const r = (new URLSearchParams(location.search).get("r") || "").trim().toUpperCase();
+  if (r.length !== 4) return;
+  pendingRoom = r;
+  $("code").value = r;
+  const bj = $("bJoin"), bh = $("bHost");
+  bj.classList.remove("ghost");          // 主ボタンに昇格
+  bh.classList.add("ghost");
+  bj.textContent = tt("joinRoom", r);
+  say(tt("roomReady", r));
+})();
 
 
 /* ================= 描画 ================= */
@@ -992,12 +1076,12 @@ function drawQuestion() {
   const midY = H / 2, bw = Math.min(360, W - 40), bh = BAND_H;
   vctx.save();
   vctx.beginPath();
-  vctx.roundRect((W - bw) / 2, midY - bh / 2, bw, bh, 14);
-  vctx.fillStyle = "rgba(9,12,17,.82)";
+  vctx.roundRect((W - bw) / 2, midY - bh / 2, bw, bh, 10);
+  vctx.fillStyle = "rgba(246,239,224,.94)";   // 和紙
   vctx.fill();
-  vctx.lineWidth = 1; vctx.strokeStyle = "rgba(127,214,162,.35)"; vctx.stroke();
+  vctx.lineWidth = 2; vctx.strokeStyle = "rgba(193,53,43,.65)"; vctx.stroke();  // 朱の縁
   vctx.textAlign = "center"; vctx.textBaseline = "middle";
-  vctx.fillStyle = "#7fd6a2";
+  vctx.fillStyle = "#1c1714";
   const rd = readingText();
   vctx.font = "600 " + Math.min(34, (bw * 0.9) / Math.max(3, rd.length) * 1.7) + "px 'Hiragino Sans', sans-serif";
   vctx.fillText(rd, W / 2, midY + 1);
