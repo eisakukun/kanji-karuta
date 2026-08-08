@@ -115,6 +115,8 @@
   }
   .howto-main { flex: 1; min-width: 0; }
   .howto-char { flex: 0 0 auto; width: 64px; align-self: flex-end; margin-right: -4px; margin-bottom: -2px; }
+  /* Safari は SVG の height:100% で高さが暴走するので固定する（縦横比 80:108） */
+  .howto-char svg { display: block; width: 64px; height: 86px; }
   .howto-t { font-size: 11px; letter-spacing: .18em; color: var(--lab); margin-bottom: 6px; }
   .howto-b { font-size: 13px; line-height: 1.9; color: var(--ink-soft); }
   .howto-b b { color: var(--ink); font-weight: 700; }
