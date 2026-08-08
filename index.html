@@ -111,7 +111,10 @@
     margin-bottom: 24px; padding: 13px 15px; border-radius: 10px;
     background: var(--chip-bg); border: 1px solid var(--chip-line);
     border-left: 3px solid var(--accent);
+    display: flex; align-items: center; gap: 10px;
   }
+  .howto-main { flex: 1; min-width: 0; }
+  .howto-char { flex: 0 0 auto; width: 62px; align-self: stretch; display: flex; align-items: center; }
   .howto-t { font-size: 11px; letter-spacing: .18em; color: var(--lab); margin-bottom: 6px; }
   .howto-b { font-size: 13px; line-height: 1.9; color: var(--ink-soft); }
   .howto-b b { color: var(--ink); font-weight: 700; }
@@ -242,8 +245,57 @@
   <div class="sub" id="lSub">ONLINE — はたいて、とる。</div>
 
   <div class="howto">
-    <div class="howto-t" id="lHowtoT">あそびかた</div>
-    <div class="howto-b" id="lHowto">まんなかの <b>よみがな</b> を見て、その読みの <b>漢字の札</b> を手ではたいて取るゲーム。<br>正しく取れたら <b>+3</b>、まちがえると <b>−2</b>。ぜん10問で 多く取ったほうが勝ち。<br>画面の <b>上が相手／下が自分</b>。自分の陣の札のほうが取りやすい。オンライン1対1。</div>
+    <div class="howto-main">
+      <div class="howto-t" id="lHowtoT">あそびかた</div>
+      <div class="howto-b" id="lHowto">まんなかの <b>よみがな</b> を見て、その読みの <b>漢字の札</b> を手ではたいて取るゲーム。<br>正しく取れたら <b>+3</b>、まちがえると <b>−2</b>。ぜん10問で 多く取ったほうが勝ち。<br>画面の <b>上が相手／下が自分</b>。自分の陣の札のほうが取りやすい。オンライン1対1。</div>
+    </div>
+    <div class="howto-char" aria-hidden="true">
+      <svg viewBox="0 0 80 108" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="40" cy="103" rx="21" ry="4" fill="rgba(0,0,0,.22)"/>
+        <!-- 着物の袖 -->
+        <rect x="12" y="60" width="14" height="26" rx="7" fill="#c1352b"/>
+        <rect x="54" y="60" width="14" height="26" rx="7" fill="#c1352b"/>
+        <!-- 着物本体 -->
+        <path d="M27 54 L53 54 L62 100 L18 100 Z" fill="#22415e"/>
+        <!-- 襟（V） -->
+        <path d="M40 54 L32 60 L40 74 L48 60 Z" fill="#f6efe0"/>
+        <path d="M40 54 L34 59 M40 54 L46 59" stroke="#c1352b" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- 帯 -->
+        <rect x="18" y="72" width="44" height="10" fill="#b8912f"/>
+        <rect x="18" y="76" width="44" height="2" fill="#8a6a1f"/>
+        <!-- 手に持つ花札（2枚） -->
+        <g transform="rotate(-12 34 84)">
+          <rect x="26" y="76" width="15" height="21" rx="2" fill="#f6efe0" stroke="#3a2f28" stroke-width="1"/>
+          <rect x="27" y="77" width="13" height="6" fill="#c1352b"/>
+          <circle cx="33.5" cy="90" r="3" fill="#e0a020"/>
+        </g>
+        <g transform="rotate(10 47 84)">
+          <rect x="40" y="76" width="15" height="21" rx="2" fill="#fbf7ee" stroke="#3a2f28" stroke-width="1"/>
+          <rect x="41" y="77" width="13" height="6" fill="#2f7d4f"/>
+          <circle cx="47.5" cy="90" r="3" fill="#c1352b"/>
+        </g>
+        <!-- 頭 -->
+        <circle cx="40" cy="34" r="17" fill="#f6dcc0"/>
+        <!-- 前髪・髪 -->
+        <path d="M23 34 A17 17 0 0 1 57 34 L57 30 C57 20 49 15 40 15 C31 15 23 20 23 30 Z" fill="#1c1714"/>
+        <path d="M23 33 C22 42 24 48 26 52 L29 40 Z" fill="#1c1714"/>
+        <path d="M57 33 C58 42 56 48 54 52 L51 40 Z" fill="#1c1714"/>
+        <!-- お団子 -->
+        <circle cx="40" cy="14" r="7" fill="#1c1714"/>
+        <!-- かんざしの花 -->
+        <g transform="translate(53 22)">
+          <circle cx="0" cy="-3" r="2.4" fill="#e85b6a"/><circle cx="2.8" cy="0" r="2.4" fill="#e85b6a"/>
+          <circle cx="0" cy="3" r="2.4" fill="#e85b6a"/><circle cx="-2.8" cy="0" r="2.4" fill="#e85b6a"/>
+          <circle cx="0" cy="0" r="1.8" fill="#ffd36f"/>
+        </g>
+        <!-- 顔 -->
+        <ellipse cx="34" cy="36" rx="1.8" ry="2.4" fill="#3a2f28"/>
+        <ellipse cx="46" cy="36" rx="1.8" ry="2.4" fill="#3a2f28"/>
+        <circle cx="30" cy="41" r="2.6" fill="#f2a6a0" opacity=".7"/>
+        <circle cx="50" cy="41" r="2.6" fill="#f2a6a0" opacity=".7"/>
+        <path d="M36 42 Q40 46 44 42" stroke="#3a2f28" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
   </div>
 
   <div class="row">
