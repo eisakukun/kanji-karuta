@@ -193,6 +193,15 @@
     display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0 16px; }
   #wait .wbtn { pointer-events: auto; background: #c1352b; color: #f6efe0; border: 0;
     border-radius: 8px; padding: 11px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  /* 招待コピーを「ふわっ」と出して光らせ、注目させる */
+  #wait .wcopywrap { animation: floatIn .55s ease both; }
+  #wait .wcopycap { font-size: 12.5px; color: #ffd36f; margin: 2px 0 7px; letter-spacing: .04em; }
+  #wait .wbtn.wpulse { animation: floatIn .55s ease both, copyPulse 1.7s ease-in-out .55s infinite; }
+  @keyframes floatIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+  @keyframes copyPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(224,112,90,0); transform: scale(1); }
+    50% { box-shadow: 0 0 20px 3px rgba(224,112,90,.6); transform: scale(1.03); }
+  }
   #wait .wbtn.ghost { background: #211d18; color: #d8cdb8; border: 1px solid #3a342b; }
   #wait .wlink { pointer-events: auto; background: none; border: 0; color: #b8ad99;
     font-size: 13px; text-decoration: underline; cursor: pointer; font-family: inherit; }
@@ -272,7 +281,10 @@
   <div class="wbar">
     <div class="wtitle" id="wTitle">あいてを待っています…</div>
     <div class="wcode" id="wCode"></div>
-    <button class="wbtn" id="wCopy">📋 しょうたいメッセージをコピー</button>
+    <div class="wcopywrap">
+      <div class="wcopycap" id="wCopyCap">👇 これを相手に送ると たいせん スタート！</div>
+      <button class="wbtn wpulse" id="wCopy">📋 しょうたいメッセージをコピー</button>
+    </div>
     <div class="wscore" id="wScore">スコア 0</div>
     <div class="whint" id="wHint">待ち時間に ミニゲーム！ 👆 玉を手でタップ</div>
   </div>
@@ -698,6 +710,8 @@ const T = {
   waitHint: { ja: "待ち時間に ミニゲーム！ 👆 玉を手でタップ", en: "Mini-game while you wait! 👆 tap the balls" },
   waitScore:{ ja: n => "スコア " + n, en: n => "Score " + n },
   waitRules:{ ja: "じゅんびOK？ ルールがわからない時は ▶", en: "Ready? Not sure how to play? ▶" },
+  copyCap:  { ja: "👇 これを相手に送ると たいせん スタート！", en: "👇 Send this to a friend to start the battle!" },
+  sharkHit: { ja: "サメ！ −3", en: "Shark! −3" },
   rulesClose:{ ja: "とじる", en: "Close" },
 };
 function tt(key, ...a) {
@@ -765,6 +779,7 @@ function applyLang() {
   $("quit").textContent = tt("quit");
   $("wTitle").textContent = tt("waitTitle");
   $("wCopy").textContent = tt("copyUrl");
+  $("wCopyCap").textContent = tt("copyCap");
   $("wHint").textContent = tt("waitHint");
   $("wRules").textContent = tt("waitRules");
   $("rulesT").textContent = tt("howtoTitle");
@@ -1277,7 +1292,12 @@ function waitPop(x, y) {
   for (let i = wballs.length - 1; i >= 0; i--) {
     const b = wballs[i];
     if (Math.hypot(b.x - x, b.y - y) < b.r + 16) {
-      wscore += b.p; wballs.splice(i, 1); playHit(0.4);
+      wscore += b.p; wballs.splice(i, 1);
+      if (b.shark) {
+        playChime(false);
+        const s = $("wScore"); s.style.color = "#ff8b6f";
+        setTimeout(() => { s.style.color = ""; }, 500);
+      } else playHit(0.4);
       $("wScore").textContent = tt("waitScore", wscore);
       return true;
     }
@@ -1297,8 +1317,14 @@ function waitLoop(now) {
   wspawn -= dt;
   if (wspawn <= 0) {
     wspawn = 0.55 + Math.random() * 0.5;
-    const t = WBALLS[(Math.random() * WBALLS.length) | 0];
-    wballs.push({ x: 40 + Math.random() * (W - 80), y: -30, r: 20 + Math.random() * 12, vy: 130 + Math.random() * 150, c: t.c, p: t.p });
+    const x = 40 + Math.random() * (W - 80), r = 20 + Math.random() * 12, vy = 130 + Math.random() * 150;
+    if (Math.random() < 0.16) {   // たまにサメ（タップすると −3）。自由に泳ぐ
+      wballs.push({ x, y: -30, r: r + 8, vy: 45 + Math.random() * 60,
+        vx: (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 80), shark: true, p: -3 });
+    } else {
+      const t = WBALLS[(Math.random() * WBALLS.length) | 0];
+      wballs.push({ x, y: -30, r, vy, vx: 0, c: t.c, p: t.p });
+    }
   }
 
   // 手のトラッキング（あれば）
@@ -1316,13 +1342,31 @@ function waitLoop(now) {
     }
   }
 
-  for (const b of wballs) b.y += b.vy * dt;
+  for (const b of wballs) {
+    b.y += b.vy * dt;
+    if (b.vx) {   // サメは横に泳ぎ、左右の壁で向きを変える
+      b.x += b.vx * dt;
+      if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx); }
+      else if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+    }
+  }
   if (pt) waitPop(pt.x, pt.y);
   wballs = wballs.filter(b => b.y < H + 40);
 
   // 描画
   vctx.fillStyle = "#07090c"; vctx.fillRect(0, 0, W, H);
   for (const b of wballs) {
+    if (b.shark) {
+      // サメ：囲いなしで自由に泳ぐ。進行方向に向く。タップ厳禁（−3）
+      vctx.save();
+      vctx.translate(b.x, b.y);
+      if (b.vx > 0) vctx.scale(-1, 1);   // 🦈は左向き。右に泳ぐ時は反転
+      vctx.textAlign = "center"; vctx.textBaseline = "middle";
+      vctx.font = Math.round(b.r * 2.4) + "px sans-serif";
+      vctx.fillText("🦈", 0, 0);
+      vctx.restore();
+      continue;
+    }
     vctx.beginPath(); vctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
     vctx.fillStyle = b.c; vctx.fill();
     vctx.lineWidth = 2; vctx.strokeStyle = "rgba(255,255,255,.5)"; vctx.stroke();
