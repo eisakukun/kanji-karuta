@@ -140,6 +140,17 @@
   .btn:disabled { opacity: .35; cursor: default; }
   .btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .btn.wide { display: block; width: 100%; margin-bottom: 10px; }
+  a.btn { text-decoration: none; text-align: center; }
+  /* 支援ボタンの色（Ko-fi=コーヒー色 / PayPay=赤） */
+  .sup-kofi { background: #d99a3a !important; color: #221a10 !important; border: 0 !important; box-shadow: 0 3px 0 #a9762a !important; }
+  .sup-paypay { background: #ff0033 !important; color: #fff !important; border: 0 !important; box-shadow: 0 3px 0 #b8001f !important; }
+  #supportRow .btn.wide:last-child { margin-bottom: 0; }
+  /* 勝敗画面の支援ブロック */
+  #rSupport { margin-top: 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .rSupCap { font-size: 12px; color: var(--lab); letter-spacing: .06em; }
+  .rSupBtns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .rSupBtn { text-decoration: none; padding: 11px 20px; border-radius: 8px; font-size: 14px; font-weight: 700; font-family: inherit; }
+  .rSupBtn:active { transform: translateY(2px); }
   .playgrp {
     margin-top: 14px; padding: 12px; border-radius: 12px;
     border: 1px dashed var(--chip-line); background: rgba(127,127,127,.04);
@@ -312,6 +323,13 @@
     <button id="rAgain">もう一回</button>
     <button id="rMenu">メニュー</button>
   </div>
+  <div id="rSupport" style="display:none">
+    <div class="rSupCap" id="rSupCap">おもしろかったら 応援してね</div>
+    <div class="rSupBtns">
+      <a class="rSupBtn sup-kofi" id="rKofi" target="_blank" rel="noopener">☕ 応援する</a>
+      <a class="rSupBtn sup-paypay" id="rPaypay" target="_blank" rel="noopener">📱 PayPayで応援</a>
+    </div>
+  </div>
 </div></div>
 
 <div id="gate"><div class="panel">
@@ -456,6 +474,12 @@
   </div>
 
   <div id="msg">モデルを読み込み中…</div>
+
+  <div class="row" id="supportRow" style="display:none">
+    <div class="lab" id="lSupport">おうえん</div>
+    <a class="btn ghost wide sup-kofi" id="mKofi" target="_blank" rel="noopener">☕ 応援する</a>
+    <a class="btn ghost wide sup-paypay" id="mPaypay" target="_blank" rel="noopener">📱 PayPayで応援</a>
+  </div>
 </div></div>
 
 <video id="vid" playsinline muted style="display:none"></video>
@@ -616,6 +640,12 @@ const DECK = [
 /* ================= 設定 ================= */
 const CFG = { input: "hand", level: 1, genre: "all", face: "on", bgm: "on", lang: "ja", theme: "dark" };
 
+/* ===== 支援リンク（URLを入れると自動でボタンが出る。空なら非表示） =====
+   Ko-fi のURL（例 "https://ko-fi.com/eisakukun"）と
+   PayPay 受け取りリンク（例 "https://qr.paypay.ne.jp/xxxx"）をここに貼るだけ。 */
+const KOFI_URL   = "";
+const PAYPAY_URL = "";
+
 /* ================= 言語 =================
    UIの文言を日/英で切り替える。札の「漢字」はそのまま、読み札だけ英語では
    ローマ字にして、日本語が読めない人でも遊べるようにする。 */
@@ -710,6 +740,10 @@ const T = {
   waitHint: { ja: "待ち時間に ミニゲーム！ 👆 玉を手でタップ", en: "Mini-game while you wait! 👆 tap the balls" },
   waitScore:{ ja: n => "スコア " + n, en: n => "Score " + n },
   waitRules:{ ja: "じゅんびOK？ ルールがわからない時は ▶", en: "Ready? Not sure how to play? ▶" },
+  supLab:   { ja: "おうえん", en: "SUPPORT" },
+  supCap:   { ja: "おもしろかったら 応援してね", en: "Enjoyed it? Support the creator" },
+  kofi:     { ja: "☕ 応援する（カード/PayPal）", en: "☕ Support (card/PayPal)" },
+  paypay:   { ja: "📱 PayPayで応援", en: "📱 Support via PayPay" },
   copyCap:  { ja: "👇 これを相手に送ると たいせん スタート！", en: "👇 Send this to a friend to start the battle!" },
   sharkHit: { ja: "サメ！ −3", en: "Shark! −3" },
   rulesClose:{ ja: "とじる", en: "Close" },
@@ -773,6 +807,12 @@ function applyLang() {
   $("bCopy").textContent = tt("copyUrl");
   $("rAgain").textContent = tt("again");
   $("rMenu").textContent = tt("menu");
+  $("lSupport").textContent = tt("supLab");
+  $("rSupCap").textContent = tt("supCap");
+  $("mKofi").textContent = tt("kofi");
+  $("rKofi").textContent = tt("kofi");
+  $("mPaypay").textContent = tt("paypay");
+  $("rPaypay").textContent = tt("paypay");
   document.querySelectorAll("[data-i]").forEach(el => { el.textContent = tt(el.dataset.i); });
   document.querySelector(".sc.me").childNodes[0].nodeValue = tt("meScore");
   document.querySelector(".sc.op").childNodes[0].nodeValue = tt("opScore");
@@ -791,6 +831,19 @@ const ROUNDS = 10;
 const CARDS_BY_LV = { 1: 4, 2: 6, 3: 6 };
 
 function applyTheme() { document.documentElement.dataset.theme = CFG.theme; }
+
+/* 支援ボタン：URLが入っていれば表示、空なら隠す */
+function setupSupport() {
+  const pairs = [["mKofi", KOFI_URL], ["rKofi", KOFI_URL], ["mPaypay", PAYPAY_URL], ["rPaypay", PAYPAY_URL]];
+  for (const [id, url] of pairs) {
+    const el = $(id); if (!el) continue;
+    if (url) { el.href = url; el.style.display = ""; } else { el.style.display = "none"; }
+  }
+  const has = !!(KOFI_URL || PAYPAY_URL);
+  $("supportRow").style.display = has ? "" : "none";
+  $("rSupport").style.display = has ? "" : "none";
+}
+setupSupport();
 
 for (const [id, key] of [["oLang","lang"],["oTheme","theme"],["oInput","input"],["oLevel","level"],["oGenre","genre"],["oFace","face"],["oBgm","bgm"]]) {
   $(id).addEventListener("click", e => {
