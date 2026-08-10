@@ -139,6 +139,15 @@
   .btn.ghost:active { box-shadow: 0 1px 0 var(--ghost-sh); }
   .btn:disabled { opacity: .35; cursor: default; }
   .btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn.wide { display: block; width: 100%; margin-bottom: 10px; }
+  .playgrp {
+    margin-top: 14px; padding: 12px; border-radius: 12px;
+    border: 1px dashed var(--chip-line); background: rgba(127,127,127,.04);
+  }
+  .playgrp-t { font-size: 12px; color: var(--ink-soft); letter-spacing: .04em; margin-bottom: 10px; }
+  .playgrp .btn.wide:last-child { margin-bottom: 0; }
+  .joinrow { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+  .joinrow #code { width: 100%; min-width: 0; }
   #code {
     width: 150px; padding: 12px 14px; font-size: 20px; letter-spacing: .3em;
     text-align: center; text-transform: uppercase; background: var(--code-bg);
@@ -170,6 +179,33 @@
     bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5; color: #56606b; font-size: 11px;
     font-variant-numeric: tabular-nums; pointer-events: none; line-height: 1.6;
   }
+
+  /* ---- あいて待ち（ミニゲーム）オーバーレイ ---- */
+  #wait { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+  #wait.hidden { display: none; }
+  #wait .wbar { position: absolute; left: 0; right: 0; top: calc(14px + env(safe-area-inset-top)); text-align: center; padding: 0 16px; }
+  #wait .wtitle { font-size: 17px; color: #f0e7d4; letter-spacing: .08em; font-weight: 600; }
+  #wait .wcode { margin-top: 6px; font-size: 13px; color: #9a8f7d; letter-spacing: .06em; }
+  #wait .wcode b { color: #e0705a; font-size: 20px; letter-spacing: .3em; }
+  #wait .wscore { margin-top: 8px; font-size: 15px; color: #6fe3a6; font-variant-numeric: tabular-nums; font-weight: 700; }
+  #wait .whint { margin-top: 4px; font-size: 12px; color: #7e8894; }
+  #wait .wfoot { position: absolute; left: 0; right: 0; bottom: calc(16px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0 16px; }
+  #wait .wbtn { pointer-events: auto; background: #c1352b; color: #f6efe0; border: 0;
+    border-radius: 8px; padding: 11px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  #wait .wbtn.ghost { background: #211d18; color: #d8cdb8; border: 1px solid #3a342b; }
+  #wait .wlink { pointer-events: auto; background: none; border: 0; color: #b8ad99;
+    font-size: 13px; text-decoration: underline; cursor: pointer; font-family: inherit; }
+
+  /* ---- ルール説明ポップアップ ---- */
+  #rules { position: fixed; inset: 0; z-index: 25; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.6); padding: 24px; }
+  #rules.hidden { display: none; }
+  .rulesCard { width: 100%; max-width: 460px; background: var(--panel-bg, #1b1815); color: var(--ink, #f0e7d4);
+    border: 1px solid var(--panel-line, #3a342b); border-radius: 16px; padding: 22px; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
+  .rulesT { font-size: 12px; letter-spacing: .18em; color: var(--lab, #8a7f6d); margin-bottom: 10px; }
+  .rulesB { font-size: 14px; line-height: 2; color: var(--ink-soft, #cdc3b0); margin-bottom: 18px; }
+  .rulesB b { color: var(--ink, #f0e7d4); }
 
   /* ---- 勝敗リザルト ---- */
   #result {
@@ -230,6 +266,30 @@
   <button id="quit">やめる</button>
 </div>
 <div id="hintbar"></div>
+
+<!-- あいて待ち（ミニゲーム） -->
+<div id="wait" class="hidden">
+  <div class="wbar">
+    <div class="wtitle" id="wTitle">あいてを待っています…</div>
+    <div class="wcode" id="wCode"></div>
+    <button class="wbtn" id="wCopy">📋 しょうたいメッセージをコピー</button>
+    <div class="wscore" id="wScore">スコア 0</div>
+    <div class="whint" id="wHint">待ち時間に ミニゲーム！ 👆 玉を手でタップ</div>
+  </div>
+  <div class="wfoot">
+    <button class="wlink" id="wRules">じゅんびOK？ ルールがわからない時は ▶</button>
+    <button class="wbtn ghost" id="wCancel">やめる</button>
+  </div>
+</div>
+
+<!-- ルール説明ポップアップ -->
+<div id="rules" class="hidden">
+  <div class="rulesCard">
+    <div class="rulesT" id="rulesT">あそびかた</div>
+    <div class="rulesB" id="rulesB"></div>
+    <button class="btn wide" id="rulesClose">とじる</button>
+  </div>
+</div>
 
 <div id="result" class="hidden"><div class="rInner">
   <div id="rSeal">勝</div>
@@ -362,13 +422,25 @@
 
   <div class="row">
     <div class="lab" id="lPlay">あそびかた</div>
-    <div class="btns">
-      <button class="btn" id="bHost">部屋をつくる</button>
-      <input id="code" placeholder="CODE" maxlength="4">
-      <button class="btn ghost" id="bJoin">入る</button>
-      <button class="btn ghost" id="bSolo">ひとりで練習</button>
+
+    <!-- ひとり -->
+    <button class="btn ghost wide" id="bSolo">🎴 ひとりで練習</button>
+
+    <!-- オンライン：部屋をつくる -->
+    <div class="playgrp">
+      <div class="playgrp-t" id="lHostGrp">🌐 オンラインで だれかと たいせん</div>
+      <button class="btn wide" id="bHost">部屋をつくる</button>
+      <button class="btn wide" id="bCopy" style="display:none">📋 しょうたいメッセージをコピー</button>
     </div>
-    <button class="btn" id="bCopy" style="display:none;margin-top:10px">📋 しょうたいメッセージをコピー</button>
+
+    <!-- オンライン：コードで入る -->
+    <div class="playgrp">
+      <div class="playgrp-t" id="lJoinGrp">あいことば（CODE）を もらった人はこちら</div>
+      <div class="joinrow">
+        <input id="code" placeholder="CODE" maxlength="4">
+        <button class="btn ghost" id="bJoin">入る</button>
+      </div>
+    </div>
   </div>
 
   <div id="msg">モデルを読み込み中…</div>
@@ -565,9 +637,11 @@ const T = {
   thDark:   { ja: "墨（くろ）", en: "Sumi (dark)" },
   thLight:  { ja: "和紙（しろ）", en: "Washi (light)" },
   play:     { ja: "あそびかた", en: "PLAY" },
+  hostGrp:  { ja: "🌐 オンラインで だれかと たいせん", en: "🌐 Play online with someone" },
+  joinGrp:  { ja: "あいことば（CODE）を もらった人はこちら", en: "Got a CODE from a friend?" },
   host:     { ja: "部屋をつくる", en: "Create room" },
   join:     { ja: "入る", en: "Join" },
-  solo:     { ja: "ひとりで練習", en: "Practice solo" },
+  solo:     { ja: "🎴 ひとりで練習", en: "🎴 Practice solo" },
   ready:    { ja: "じゅんび完了。部屋をつくって、コードを相手に伝えてね。",
              en: "Ready. Create a room and share the code with your opponent." },
   prompt:   { ja: "この よみの かんじを はたけ！", en: "Swipe the kanji that reads:" },
@@ -619,6 +693,12 @@ const T = {
   joinRoom: { ja: c => "🎴 部屋「" + c + "」に入る", en: c => "🎴 Join room " + c },
   roomReady:{ ja: c => "しょうたい URL をひらいたよ。下の「部屋に入る」を押してね。（部屋 " + c + "）",
               en: c => "Invite opened. Tap “Join room” below. (room " + c + ")" },
+  waitTitle:{ ja: "あいてを待っています…", en: "Waiting for your opponent…" },
+  waitCode: { ja: c => "あいことば <b>" + c + "</b>", en: c => "CODE <b>" + c + "</b>" },
+  waitHint: { ja: "待ち時間に ミニゲーム！ 👆 玉を手でタップ", en: "Mini-game while you wait! 👆 tap the balls" },
+  waitScore:{ ja: n => "スコア " + n, en: n => "Score " + n },
+  waitRules:{ ja: "じゅんびOK？ ルールがわからない時は ▶", en: "Ready? Not sure how to play? ▶" },
+  rulesClose:{ ja: "とじる", en: "Close" },
 };
 function tt(key, ...a) {
   const e = T[key] && T[key][L()];
@@ -671,6 +751,8 @@ function applyLang() {
   $("lTheme").textContent = tt("theme");
   $("lBgm").textContent = "BGM";
   $("lPlay").textContent = tt("play");
+  $("lHostGrp").textContent = tt("hostGrp");
+  $("lJoinGrp").textContent = tt("joinGrp");
   $("bHost").textContent = tt("host");
   $("bJoin").textContent = pendingRoom ? tt("joinRoom", pendingRoom) : tt("join");
   $("bSolo").textContent = tt("solo");
@@ -681,6 +763,12 @@ function applyLang() {
   document.querySelector(".sc.me").childNodes[0].nodeValue = tt("meScore");
   document.querySelector(".sc.op").childNodes[0].nodeValue = tt("opScore");
   $("quit").textContent = tt("quit");
+  $("wTitle").textContent = tt("waitTitle");
+  $("wCopy").textContent = tt("copyUrl");
+  $("wHint").textContent = tt("waitHint");
+  $("wRules").textContent = tt("waitRules");
+  $("rulesT").textContent = tt("howtoTitle");
+  $("rulesClose").textContent = tt("rulesClose");
   updateVoiceBtn();
   if (!playing) msg.innerHTML = handLandmarker ? tt("ready") : msg.innerHTML;
 }
@@ -1033,6 +1121,7 @@ async function startGame(m) {
   scMe.textContent = 0; scOp.textContent = 0;
   gate.classList.add("hidden");
   $("result").classList.add("hidden");
+  stopWaiting();                 // 待機ミニゲームを終了
   hud.style.display = "flex";
   if (CFG.bgm === "on") startBGM();
   // 会話モードのトグルは「オンライン＋マイクあり」のときだけ出す（既定オフ）
@@ -1053,6 +1142,7 @@ function endGame(outcome, note) {
   cards = []; trail.length = 0;
   hud.style.display = "none";
   $("bVoice").style.display = "none";
+  stopWaiting();
   stopBGM();
   if (conn) { try { conn.close(); } catch (e) {} conn = null; }
   if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
@@ -1147,23 +1237,112 @@ $("bHost").addEventListener("click", async () => {
   try {
     await initPeer(PREFIX + code);
     roomCode = code;
-    say(tt("codeAsk", code));
-    $("bCopy").style.display = "";     // URLコピーボタンを出す
+    // 待機画面（ミニゲーム）へ。あいてが入ったら startGame が呼ばれる
+    gate.classList.add("hidden");
+    $("wCode").innerHTML = tt("waitCode", code);
+    startWaiting();
   } catch (e) { say("Room error: " + (e.message || e), true); }
 });
 
-$("bCopy").addEventListener("click", async () => {
-  const url = roomUrl(roomCode);
-  const text = tt("inviteMsg", url, roomCode);
-  const preview = "<br><span style='display:block;margin-top:8px;font-size:12px;letter-spacing:0;"
-    + "color:var(--ink-soft);white-space:pre-wrap;line-height:1.6'>" + text + "</span>";
-  try {
-    await navigator.clipboard.writeText(text);
-    say(tt("copied") + preview);
-  } catch (e) {
-    say(tt("copyNG") + preview, true);
-  }
+async function copyInvite() {
+  const text = tt("inviteMsg", roomUrl(roomCode), roomCode);
+  try { await navigator.clipboard.writeText(text); return { ok: true, text }; }
+  catch (e) { return { ok: false, text }; }
+}
+$("wCopy").addEventListener("click", async () => {
+  const r = await copyInvite();
+  const b = $("wCopy");
+  b.textContent = r.ok ? (CFG.lang === "en" ? "✓ Copied!" : "✓ コピーした！")
+                       : (CFG.lang === "en" ? "Long-press to copy" : "長押しでコピー");
+  setTimeout(() => { b.textContent = tt("copyUrl"); }, 1600);
 });
+
+/* ================= あいて待ちミニゲーム =================
+   上から色玉が落ちてくる。手（MediaPipe）かタップで割る。色で点が違う。 */
+const WBALLS = [
+  { c: "#7fa0c0", p: 1 }, { c: "#e0705a", p: 1 }, { c: "#6fe3a6", p: 2 },
+  { c: "#b8912f", p: 3 }, { c: "#e85b6a", p: 5 },
+];
+let waiting = false, wballs = [], wscore = 0, wlast = 0, wspawn = 0, wsm = null;
+
+function startWaiting() {
+  waiting = true; wballs = []; wscore = 0; wsm = null; wlast = performance.now(); wspawn = 0;
+  $("wait").classList.remove("hidden");
+  $("wScore").textContent = tt("waitScore", 0);
+  requestAnimationFrame(waitLoop);
+}
+function stopWaiting() { waiting = false; wballs = []; $("wait").classList.add("hidden"); }
+
+function waitPop(x, y) {
+  for (let i = wballs.length - 1; i >= 0; i--) {
+    const b = wballs[i];
+    if (Math.hypot(b.x - x, b.y - y) < b.r + 16) {
+      wscore += b.p; wballs.splice(i, 1); playHit(0.4);
+      $("wScore").textContent = tt("waitScore", wscore);
+      return true;
+    }
+  }
+  return false;
+}
+addEventListener("pointerdown", e => { if (waiting) waitPop(e.clientX, e.clientY); });
+
+function waitLoop(now) {
+  if (!waiting) return;
+  requestAnimationFrame(waitLoop);
+  let dt = (now - wlast) / 1000; wlast = now;
+  if (!(dt > 0)) dt = 0.016; dt = Math.min(dt, 0.05);
+  if (window.innerWidth !== W || window.innerHeight !== H) resize();
+  if (!W || !H) return;
+
+  wspawn -= dt;
+  if (wspawn <= 0) {
+    wspawn = 0.55 + Math.random() * 0.5;
+    const t = WBALLS[(Math.random() * WBALLS.length) | 0];
+    wballs.push({ x: 40 + Math.random() * (W - 80), y: -30, r: 20 + Math.random() * 12, vy: 130 + Math.random() * 150, c: t.c, p: t.p });
+  }
+
+  // 手のトラッキング（あれば）
+  let pt = null;
+  if (camOn && handLandmarker && mir.width && vid.readyState >= 2) {
+    mctx.save(); mctx.translate(mir.width, 0); mctx.scale(-1, 1);
+    mctx.drawImage(vid, 0, 0, mir.width, mir.height); mctx.restore();
+    const res = handLandmarker.detectForVideo(mir, now);
+    const lm = res && res.landmarks && res.landmarks[0];
+    if (lm) {
+      const p = mapPt(lm[INDEX_TIP]);
+      if (!wsm) wsm = { x: p.x, y: p.y };
+      else { wsm.x += (p.x - wsm.x) * 0.5; wsm.y += (p.y - wsm.y) * 0.5; }
+      pt = wsm;
+    }
+  }
+
+  for (const b of wballs) b.y += b.vy * dt;
+  if (pt) waitPop(pt.x, pt.y);
+  wballs = wballs.filter(b => b.y < H + 40);
+
+  // 描画
+  vctx.fillStyle = "#07090c"; vctx.fillRect(0, 0, W, H);
+  for (const b of wballs) {
+    vctx.beginPath(); vctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    vctx.fillStyle = b.c; vctx.fill();
+    vctx.lineWidth = 2; vctx.strokeStyle = "rgba(255,255,255,.5)"; vctx.stroke();
+    vctx.fillStyle = "rgba(0,0,0,.55)"; vctx.textAlign = "center"; vctx.textBaseline = "middle";
+    vctx.font = "700 " + Math.round(b.r * 0.9) + "px sans-serif";
+    vctx.fillText(b.p, b.x, b.y + 1);
+  }
+  if (pt) {
+    vctx.beginPath(); vctx.arc(pt.x, pt.y, 14, 0, Math.PI * 2);
+    vctx.fillStyle = "rgba(111,227,166,.85)"; vctx.fill();
+    vctx.lineWidth = 2; vctx.strokeStyle = "#fff"; vctx.stroke();
+  }
+}
+
+/* ルール説明ポップアップ */
+function openRules() { $("rulesB").innerHTML = tt("howto"); $("rules").classList.remove("hidden"); }
+$("wRules").addEventListener("click", openRules);
+$("rulesClose").addEventListener("click", () => $("rules").classList.add("hidden"));
+$("rules").addEventListener("click", e => { if (e.target.id === "rules") $("rules").classList.add("hidden"); });
+$("wCancel").addEventListener("click", () => { stopWaiting(); endGame(null); });
 
 $("bJoin").addEventListener("click", async () => {
   unlockAudioInGesture();
