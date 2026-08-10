@@ -1274,9 +1274,12 @@ $("wCopy").addEventListener("click", async () => {
 
 /* ================= あいて待ちミニゲーム =================
    上から色玉が落ちてくる。手（MediaPipe）かタップで割る。色で点が違う。 */
+// 色ごとに点数を統一（1色＝1つの数字）
 const WBALLS = [
-  { c: "#7fa0c0", p: 1 }, { c: "#e0705a", p: 1 }, { c: "#6fe3a6", p: 2 },
-  { c: "#b8912f", p: 3 }, { c: "#e85b6a", p: 5 },
+  { c: "#7fa0c0", p: 1 },  // 青 = 1
+  { c: "#6fe3a6", p: 2 },  // 緑 = 2
+  { c: "#e0b24a", p: 3 },  // 金 = 3
+  { c: "#e85b6a", p: 5 },  // 赤 = 5
 ];
 let waiting = false, wballs = [], wscore = 0, wlast = 0, wspawn = 0, wsm = null;
 
@@ -1367,10 +1370,13 @@ function waitLoop(now) {
       vctx.restore();
       continue;
     }
+    // 半透明のガラス玉：透けた本体＋光のハイライト＋ふち
     vctx.beginPath(); vctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    vctx.fillStyle = b.c; vctx.fill();
+    vctx.save(); vctx.globalAlpha = 0.7; vctx.fillStyle = b.c; vctx.fill(); vctx.restore();
     vctx.lineWidth = 2; vctx.strokeStyle = "rgba(255,255,255,.5)"; vctx.stroke();
-    vctx.fillStyle = "rgba(0,0,0,.55)"; vctx.textAlign = "center"; vctx.textBaseline = "middle";
+    vctx.beginPath(); vctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.34, b.r * 0.3, 0, Math.PI * 2);
+    vctx.fillStyle = "rgba(255,255,255,.4)"; vctx.fill();
+    vctx.fillStyle = "rgba(0,0,0,.62)"; vctx.textAlign = "center"; vctx.textBaseline = "middle";
     vctx.font = "700 " + Math.round(b.r * 0.9) + "px sans-serif";
     vctx.fillText(b.p, b.x, b.y + 1);
   }
