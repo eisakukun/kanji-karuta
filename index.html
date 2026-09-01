@@ -197,7 +197,7 @@
   .sc.me b { color: #6fe3a6; }
   .sc.op b { color: #ff9f6f; }
   #qn { margin-left: auto; font-size: 12px; color: #6d7884; letter-spacing: .12em; }
-  #quit, #bVoice {
+  #quit, #bVoice, #bCam {
     pointer-events: auto; background: #131920; color: #7e8894; border: 1px solid #2b3542;
     border-radius: 999px; padding: 5px 13px; font-size: 12px; cursor: pointer; font-family: inherit;
   }
@@ -304,6 +304,7 @@
   <div class="sc me">じぶん<b id="scMe">0</b></div>
   <div class="sc op">あいて<b id="scOp">0</b></div>
   <div id="qn"></div>
+  <button id="bCam" style="display:none">📷 カメラを使う</button>
   <button id="bVoice" style="display:none">🔇 かいわ オフ</button>
   <button id="quit">やめる</button>
 </div>
@@ -803,8 +804,9 @@ const T = {
                 "Let's play Kanji Karuta! 🎴\nJust tap this link to join 👇\n" + url +
                 "\n(or enter the code \"" + code + "\")" },
   joinRoom: { ja: c => "🎴 部屋「" + c + "」に入る", en: c => "🎴 Join room " + c },
-  roomReady:{ ja: c => "しょうたい URL をひらいたよ。下の「部屋に入る」を押してね。（部屋 " + c + "）",
-              en: c => "Invite opened. Tap “Join room” below. (room " + c + ")" },
+  roomReady:{ ja: c => "しょうたい URL をひらいたよ。部屋 " + c + " に入ります…",
+              en: c => "Invite opened. Joining room " + c + "…" },
+  useCam:   { ja: "📷 カメラを使う", en: "📷 Use camera" },
   waitTitle:{ ja: "あいてを待っています…", en: "Waiting for your opponent…" },
   waitCode: { ja: c => "あいことば <b>" + c + "</b>", en: c => "CODE <b>" + c + "</b>" },
   waitHint: { ja: "待ち時間に ミニゲーム！ 👆 玉を手でタップ", en: "Mini-game while you wait! 👆 tap the balls" },
@@ -894,6 +896,7 @@ function applyLang() {
   $("wHint").textContent = tt("waitHint");
   $("wRules").textContent = tt("waitRules");
   $("wCancel").textContent = tt("quit");
+  $("bCam").textContent = tt("useCam");
   $("rulesT").textContent = tt("howtoTitle");
   $("rulesClose").textContent = tt("rulesClose");
   updateVoiceBtn();
@@ -1292,6 +1295,8 @@ async function startGame(m) {
   } else {
     $("bVoice").style.display = "none";
   }
+  // 手で取る設定なのにカメラが無い＝招待URLから自動で入って断られた等。取り直せるようにする
+  $("bCam").style.display = (CFG.input === "hand" && !camOn) ? "" : "none";
   requestAnimationFrame(loop);
   if (mode === "solo" || isHost) newRound();
 }
@@ -1559,17 +1564,49 @@ $("rulesClose").addEventListener("click", () => $("rules").classList.add("hidden
 $("rules").addEventListener("click", e => { if (e.target.id === "rules") $("rules").classList.add("hidden"); });
 $("wCancel").addEventListener("click", () => { stopWaiting(); endGame(null); });
 
-$("bJoin").addEventListener("click", async () => {
-  unlockAudioInGesture();
-  const code = $("code").value.trim().toUpperCase();
-  if (code.length !== 4) return say(tt("code4"), true);
-  // 同上。カメラが無いことを入室の条件にしない
+/* ボタンから入るときも、招待URLでそのまま入るときも、ここを通す */
+async function doJoin(code) {
+  // カメラが無いことを入室の条件にしない（断られてもマウス/キーで取れる）
   try { await openCamera(true); } catch (e) { say(tt("camNG", e.name)); }
   isHost = false;
   try {
     await initPeer(null);
     joinRoom(PREFIX + code);
   } catch (e) { say("Join error: " + (e.message || e), true); }
+}
+
+$("bJoin").addEventListener("click", () => {
+  unlockAudioInGesture();
+  const code = $("code").value.trim().toUpperCase();
+  if (code.length !== 4) return say(tt("code4"), true);
+  doJoin(code);
+});
+
+/* 音は「指で触った瞬間」でないと解禁できない（iOSの決まり）。
+   招待URLからそのまま入る場合はタップを一度ももらえないので、
+   最初にどこかを触った/押した瞬間だけ解禁する。 */
+let audioArmed = false;
+function armAudioUnlock() {
+  if (audioArmed) return;
+  audioArmed = true;
+  const once = () => {
+    unlockAudioInGesture();
+    removeEventListener("pointerdown", once);
+    removeEventListener("keydown", once);
+    removeEventListener("touchstart", once);
+  };
+  addEventListener("pointerdown", once, { passive: true });
+  addEventListener("keydown", once);
+  addEventListener("touchstart", once, { passive: true });
+}
+
+/* カメラの取り直し。招待URLから自動で入ると、指タップが無いぶん
+   カメラを断られることがある（LINEやInstagramのアプリ内ブラウザで起きやすい）。
+   そのときだけHUDに出して、押した＝指タップの中でもう一度取りにいく。 */
+$("bCam").addEventListener("click", async () => {
+  unlockAudioInGesture();
+  try { await openCamera(true); $("bCam").style.display = "none"; }
+  catch (e) { say(tt("camNG", e.name)); }
 });
 
 /* ================= 部屋に入る =================
@@ -1634,8 +1671,15 @@ addEventListener("keydown", e => {
   }
 });
 
-/* 招待URL（?r=CODE）で開いたとき：コードを入れて「部屋に入る」を目立たせる。
-   自動では入らない（カメラ許可に指タップが要るため）＝ボタン一発で入れる形にする。 */
+/* 招待URL（?r=CODE）で開いたとき：押させずに、そのまま部屋に入る。
+   前は「部屋に入る」を一度押させていた。カメラ許可と音の解禁に指タップが要る、
+   というのが理由だったが、その一押しが招待をもらった人の脱落点そのものだった。
+
+   ・回線（PeerJS）はタップが要らないので、そのままつながる
+   ・カメラは断られても対戦は続く。取り直したい人のために HUD に 📷 を出す
+   ・音だけはタップが要るので、最初に触った瞬間に解禁する（armAudioUnlock）
+
+   ボタンは残す。自動入室が失敗したとき、押して入り直せるように。 */
 (function handleInvite() {
   const r = (new URLSearchParams(location.search).get("r") || "").trim().toUpperCase();
   if (r.length !== 4) return;
@@ -1646,6 +1690,8 @@ addEventListener("keydown", e => {
   bh.classList.add("ghost");
   bj.textContent = tt("joinRoom", r);
   say(tt("roomReady", r));
+  armAudioUnlock();
+  doJoin(r);
 })();
 
 
